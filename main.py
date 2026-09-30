@@ -5,6 +5,7 @@ import base64
 import email.utils
 import hashlib
 import os
+import random
 import re
 import sqlite3
 import time
@@ -228,12 +229,50 @@ def get_channel_config(config: dict, channel_name: str | None = None) -> tuple[s
     return active, account
 
 
+STEALTH_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0",
+]
+
+STEALTH_REFERRERS = [
+    "https://www.google.com/",
+    "https://www.bing.com/",
+    "https://duckduckgo.com/",
+    "https://search.yahoo.com/",
+]
+
+
+def get_stealth_headers(custom_ua: str | None = None) -> dict[str, str]:
+    ua = custom_ua or random.choice(STEALTH_USER_AGENTS)
+    headers = {
+        "User-Agent": ua,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": random.choice(STEALTH_REFERRERS),
+        "DNT": "1",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "cross-site",
+    }
+    if "Chrome" in ua or "Edg" in ua:
+        headers["sec-ch-ua"] = '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"'
+        headers["sec-ch-ua-mobile"] = "?0"
+        headers["sec-ch-ua-platform"] = '"Windows"' if "Windows" in ua else '"macOS"'
+    return headers
+
+
+def human_delay(min_sec: float = 1.0, max_sec: float = 2.5) -> None:
+    """Random human-like pacing delay to avoid burst rate limits."""
+    time.sleep(random.uniform(min_sec, max_sec))
+
+
 def fetch_ddg_results(query: str, max_results: int = 15) -> list[dict]:
     results = []
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
+    headers = get_stealth_headers()
     try:
         with httpx.Client(timeout=12.0, headers=headers) as client:
             resp = client.post("https://html.duckduckgo.com/html/", data={"q": query}, follow_redirects=True)
@@ -500,17 +539,27 @@ def search_candidates(config: dict, reporter=None) -> list[Candidate]:
     return found
 
 
-def fetch_html(client: httpx.Client, url: str) -> str:
-    try:
-        r = client.get(url, follow_redirects=True)
-        if r.status_code >= 400:
-            return ""
-        ctype = r.headers.get("content-type", "")
-        if "text/html" not in ctype:
-            return ""
-        return r.text[:1_500_000]
-    except Exception:
-        return ""
+def fetch_html(client: httpx.Client, url: str, max_retries: int = 2) -> str:
+    for attempt in range(max_retries + 1):
+        try:
+            headers = get_stealth_headers()
+            r = client.get(url, headers=headers, follow_redirects=True)
+            if r.status_code == 200:
+                ctype = r.headers.get("content-type", "")
+                if "text/html" in ctype or "text/plain" in ctype:
+                    return r.text[:1_500_000]
+            elif r.status_code in (429, 503):
+                # Exponential backoff on rate limits
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            elif r.status_code >= 400:
+                return ""
+        except Exception:
+            if attempt < max_retries:
+                time.sleep(1.0)
+            else:
+                return ""
+    return ""
 
 
 def extract_public_emails(html: str, website: str) -> list[str]:

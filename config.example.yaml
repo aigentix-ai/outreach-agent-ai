@@ -1,50 +1,73 @@
 offer:
-  name: AI Receptionist
-  description: AI receptionist answering calls and booking appointments.
-  sender_name: Ahmad
-  cta: Open to a quick 10-minute chat this week?
+  name: AI Commercial Video Production
+  description: High-converting AI video commercials and video ads for growing brands that replace stale static images, boost ROAS, and cut production costs by 80%.
+  sender_name: Your Name
+  cta: Mind if I send over a quick 20-second sample video tailored for your brand?
+
 target:
   countries:
-  - United States
+    - United States
+    - United Kingdom
+    - Canada
   industries:
-  - plumber
-  - HVAC
-  - dentist
-  max_search_results_per_query: 20
+    - skincare brand
+    - apparel brand
+    - beverage brand
+    - supplement brand
+    - pet brand
+    - home goods
   cities: []
+  max_search_results_per_query: 20
+
 discovery:
   sources:
-    duckduckgo: true
-    meta_ads: true
+    meta_ads: true      # Primary: finds active advertisers running ads on FB & IG
+    duckduckgo: true    # Finds emerging DTC brands and product launches
+    social_radar: true  # Reddit, Quora, and discussion review forums
     csv_import: false
-    social_radar: false
   csv_path: leads_input.csv
   meta:
     access_token: ''
+
 signals:
-- name: hiring_receptionist
-  query_patterns:
-  - '"hiring receptionist" {industry}'
-  - '"front desk" hiring {industry}'
-  score: 35
-- name: unanswered_calls
-  query_patterns:
-  - '"no one answers" {industry}'
-  - '"never answers the phone" {industry}'
-  score: 45
-- name: appointment_friction
-  query_patterns:
-  - '"call to schedule" {industry}'
-  score: 15
+  - name: static_ad_creative
+    query_patterns:
+      - 'site:facebook.com/ads/library "{industry}"'
+      - '"{industry}" "shop our collection" "new launch"'
+    score: 55
+  - name: video_creative_fatigue
+    query_patterns:
+      - '"{industry}" "best seller" "order now"'
+      - 'site:reddit.com inurl:comments "{industry}" ("recommend" OR "ad looks")'
+    score: 45
+  - name: growing_dtc_brand
+    query_patterns:
+      - '"featured in" "{industry}" "our story"'
+      - '"new arrivals" "{industry}"'
+    score: 40
+
 filters:
   blacklist_keywords:
-  - crypto
-  - casino
+    - crypto
+    - casino
+    - gambling
+    - adult
+    - nike
+    - adidas
+    - apple
+    - amazon
+    - walmart
+    - target
   blacklist_domains:
-  - example.com
-  - competitor.com
+    - example.com
+    - amazon.com
+    - target.com
+    - walmart.com
+    - shein.com
+    - temu.com
   excluded_industries: []
   emergency_stop: false
+
 channels:
   active_channel: default_gmail
   accounts:
@@ -53,37 +76,38 @@ channels:
       credentials_file: credentials.json
       token_file: token.json
       daily_cap: 25
-      sender_name: Ahmad
-    secondary_gmail:
-      type: gmail
-      credentials_file: credentials_secondary.json
-      token_file: token_secondary.json
-      daily_cap: 50
-      sender_name: Sales Team
+      sender_name: Your Name
+
 outreach:
   send_mode: draft
   daily_cap: 25
-  delay_seconds: 1.0
+  delay_seconds: 2.0
   include_opt_out: true
-  subject_template: Quick question about {company}
+  subject_template: "Quick creative idea for {company}'s ads"
+
 qualification:
   min_score: 50
   require_public_email: true
+
 contact_intelligence:
   enabled: true
   max_search_results: 6
   min_confidence: 45
+
 ai:
   enabled: true
   provider_order:
-  - nvidia
-  - openrouter
-  - gemini
+    - nvidia
+    - openrouter
+    - gemini
   min_heuristic_score_before_ai: 15
   min_confidence: 55
-  max_email_words: 90
+  max_email_words: 85
+
 crawler:
   timeout_seconds: 12
-  max_pages_per_domain: 7
-  user_agent: Mozilla/5.0 (compatible; OutreachResearchBot/1.0)
-theme: dark
+  max_pages_per_domain: 5
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+  min_delay_seconds: 1.5
+  max_delay_seconds: 3.5
+  enable_anti_blocking: true

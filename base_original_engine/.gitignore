@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+credentials*.json
+token*.json
+
+# SQLite Databases & Lock files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+leads.db*
+
+# Local Runtime Reports & Logs
+reports/*.json
+reports/*.md
+!reports/.gitkeep
+*.log
+
+# User Configuration Overrides
+config.yaml
+!config.example.yaml
+
+# IDEs & System Artifacts
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db

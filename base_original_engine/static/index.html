@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OutreachAgent Studio</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand & Status -->
+      <div class="flex items-center space-x-4">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-lg tracking-tight text-white">OutreachAgent</span>
+            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Gemini AI Active
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Autonomous Prospecting & Email Outreach</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center space-x-3">
+        <div id="system-status-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-slate-500" id="status-dot"></span>
+          <span id="status-text">Idle</span>
+        </div>
+
+        <button onclick="triggerAction('discover')" id="btn-discover" class="px-3.5 py-2 text-sm font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-2 shadow-sm">
+          <i data-lucide="search" class="w-4 h-4 text-indigo-400"></i>
+          <span>Find Leads</span>
+        </button>
+
+        <button onclick="triggerAction('outreach')" id="btn-outreach" class="px-3.5 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center gap-2 shadow-lg shadow-indigo-600/25">
+          <i data-lucide="mail" class="w-4 h-4"></i>
+          <span>Create Drafts</span>
+        </button>
+
+        <button onclick="triggerAction('all')" id="btn-all" class="px-3.5 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white transition flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+          <i data-lucide="play" class="w-4 h-4"></i>
+          <span>Full Auto Run</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+
+    <!-- KPI CARDS -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      
+      <!-- Total Leads -->
+      <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm hover:border-slate-700/80 transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Scanned</span>
+          <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+            <i data-lucide="users" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="mt-4 flex items-baseline gap-2">
+          <span class="text-3xl font-bold text-white tracking-tight" id="kpi-total-leads">0</span>
+          <span class="text-xs text-slate-400">businesses discovered</span>
+        </div>
+      </div>
+
+      <!-- AI Qualified -->
+      <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm hover:border-slate-700/80 transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">AI Qualified</span>
+          <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+            <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="mt-4 flex items-baseline gap-2">
+          <span class="text-3xl font-bold text-emerald-400 tracking-tight" id="kpi-ai-qualified">0</span>
+          <span class="text-xs text-slate-400">high-intent matches</span>
+        </div>
+      </div>
+
+      <!-- Decision Makers -->
+      <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm hover:border-slate-700/80 transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Verified Contacts</span>
+          <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="mt-4 flex items-baseline gap-2">
+          <span class="text-3xl font-bold text-white tracking-tight" id="kpi-named-contacts">0</span>
+          <span class="text-xs text-slate-400" id="kpi-mx-valid">0 MX valid</span>
+        </div>
+      </div>
+
+      <!-- Drafts & Sent -->
+      <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm hover:border-slate-700/80 transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Gmail Drafts</span>
+          <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+            <i data-lucide="send" class="w-5 h-5"></i>
+          </div>
+        </div>
+        <div class="mt-4 flex items-baseline gap-2">
+          <span class="text-3xl font-bold text-purple-400 tracking-tight" id="kpi-drafted">0</span>
+          <span class="text-xs text-slate-400">ready to review</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- NAVIGATION TABS -->
+    <div class="border-b border-slate-800 flex items-center justify-between">
+      <nav class="flex space-x-8">
+        <button onclick="switchTab('leads')" id="tab-btn-leads" class="border-b-2 border-indigo-500 py-3 px-1 text-sm font-semibold text-white flex items-center gap-2">
+          <i data-lucide="table" class="w-4 h-4 text-indigo-400"></i>
+          <span>Leads & Email Drafts</span>
+        </button>
+        <button onclick="switchTab('logs')" id="tab-btn-logs" class="border-b-2 border-transparent py-3 px-1 text-sm font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-2">
+          <i data-lucide="terminal" class="w-4 h-4"></i>
+          <span>Live Activity</span>
+        </button>
+        <button onclick="switchTab('reports')" id="tab-btn-reports" class="border-b-2 border-transparent py-3 px-1 text-sm font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-2">
+          <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+          <span>Run Reports</span>
+        </button>
+        <button onclick="switchTab('settings')" id="tab-btn-settings" class="border-b-2 border-transparent py-3 px-1 text-sm font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-2">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+          <span>Offer & Settings</span>
+        </button>
+      </nav>
+      <div class="text-xs text-slate-400 flex items-center gap-1.5 pb-2">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 cursor-pointer hover:text-white transition" onclick="refreshAll()"></i>
+        <span>Auto-syncs every 5s</span>
+      </div>
+    </div>
+
+    <!-- TAB 1: LEADS CRM TABLE -->
+    <div id="tab-leads" class="space-y-4">
+      
+      <!-- Filters and Search -->
+      <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div class="relative w-full sm:w-80">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+          <input type="text" id="leads-search" oninput="loadLeads()" placeholder="Search company, website, or email..." class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200 placeholder-slate-500">
+        </div>
+
+        <div class="flex items-center space-x-2 w-full sm:w-auto">
+          <span class="text-xs text-slate-400 font-medium">Status:</span>
+          <select id="leads-filter-status" onchange="loadLeads()" class="bg-slate-900 border border-slate-800 text-slate-300 text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+            <option value="all">All Leads</option>
+            <option value="drafted">Drafted in Gmail</option>
+            <option value="discovered">Discovered</option>
+            <option value="sent">Sent</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Leads Table Container -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-900/90 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="py-3.5 px-4 font-semibold">Company</th>
+                <th class="py-3.5 px-4 font-semibold">Contact Email</th>
+                <th class="py-3.5 px-4 font-semibold">Signal & Score</th>
+                <th class="py-3.5 px-4 font-semibold">Status</th>
+                <th class="py-3.5 px-4 font-semibold text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="leads-table-body" class="divide-y divide-slate-800/60 text-slate-300">
+              <tr>
+                <td colspan="5" class="py-12 text-center text-slate-500">
+                  <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 stroke-1"></i>
+                  <span>No leads in database yet. Click <strong>Find Leads</strong> above to start!</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: LIVE ACTIVITY / LOGS -->
+    <div id="tab-logs" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span class="font-semibold text-sm text-slate-200">Autonomous Engine Console</span>
+          </div>
+          <span class="text-xs text-slate-400">Live background updates</span>
+        </div>
+        <div id="logs-console" class="mono text-xs text-slate-300 bg-slate-950 p-4 rounded-xl h-96 overflow-y-auto space-y-1 border border-slate-800/80 leading-relaxed">
+          <div class="text-slate-500">// Console ready. Awaiting next run...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: RUN REPORTS -->
+    <div id="tab-reports" class="hidden space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-400"></i>
+            <span>Recent Execution Reports</span>
+          </h2>
+          <p class="text-xs text-slate-400">Auditable funnel performance, search yield, and AI qualification history.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="loadReports()" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Refresh</span>
+          </button>
+          <button onclick="clearAllReports()" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            <span>Clear All</span>
+          </button>
+        </div>
+      </div>
+      <div id="reports-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Report cards populated dynamically -->
+        <div class="col-span-2 py-10 text-center text-slate-500 bg-slate-900/40 rounded-2xl border border-slate-800">
+          No reports generated yet. Run discovery or outreach to view reports.
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: OFFER & SETTINGS FORM -->
+    <div id="tab-settings" class="hidden max-w-4xl space-y-6">
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-6">
+        <div>
+          <h2 class="text-lg font-bold text-white">Niche & Offer Setup</h2>
+          <p class="text-xs text-slate-400">Adjust what service you are selling and who the bot should target.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Service / Offer Name</label>
+            <input type="text" id="cfg-offer-name" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Sender Name</label>
+            <input type="text" id="cfg-sender-name" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+          </div>
+          <div class="col-span-full space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Service Description (What value you deliver)</label>
+            <textarea id="cfg-offer-desc" rows="2" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200"></textarea>
+          </div>
+          <div class="col-span-full space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Call to Action (CTA)</label>
+            <input type="text" id="cfg-cta" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+          </div>
+        </div>
+
+        <hr class="border-slate-800">
+
+        <div>
+          <h2 class="text-lg font-bold text-white">Targeting & Volume</h2>
+          <p class="text-xs text-slate-400">Define industries, daily caps, and sending behavior.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Target Industries (Comma-separated)</label>
+            <input type="text" id="cfg-industries" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Target Countries (Comma-separated)</label>
+            <input type="text" id="cfg-countries" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Daily Email Volume Cap</label>
+            <input type="number" id="cfg-daily-cap" min="1" max="150" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Mode</label>
+            <select id="cfg-send-mode" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+              <option value="draft">Draft in Gmail (Safe & Recommended)</option>
+              <option value="send">Direct Send</option>
+            </select>
+          </div>
+        </div>
+
+        <hr class="border-slate-800">
+
+        <div>
+          <h2 class="text-lg font-bold text-white">Safety & Blacklist</h2>
+          <p class="text-xs text-slate-400">Exclude unwanted niches or halt outreach instantly.</p>
+        </div>
+
+        <div class="space-y-4">
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-300">Blacklisted Keywords (Comma-separated)</label>
+            <input type="text" id="cfg-blacklist" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-xl">
+            <div>
+              <span class="text-sm font-semibold text-rose-400 block">Emergency Kill Switch</span>
+              <span class="text-xs text-slate-400">Immediately freeze all email drafting and sending.</span>
+            </div>
+            <input type="checkbox" id="cfg-emergency-stop" class="w-5 h-5 accent-rose-500 cursor-pointer">
+          </div>
+        </div>
+
+        <div class="pt-4 flex justify-end">
+          <button onclick="saveSettings()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl transition flex items-center gap-2 shadow-lg shadow-indigo-600/20">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            <span>Save Settings</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- EMAIL MODAL INSPECTOR -->
+  <div id="email-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative">
+      <div class="flex items-start justify-between border-b border-slate-800 pb-4">
+        <div>
+          <h3 id="modal-company" class="text-lg font-bold text-white">Company Name</h3>
+          <p id="modal-meta" class="text-xs text-slate-400">Target Email • Score</p>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Subject Line</span>
+          <div id="modal-subject" class="mt-1 p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-sm font-medium text-slate-200"></div>
+        </div>
+
+        <div>
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Personalized Email Draft</span>
+          <div id="modal-body" class="mt-1 p-4 rounded-xl bg-slate-950 border border-slate-800/80 text-sm text-slate-300 whitespace-pre-line leading-relaxed font-sans max-h-60 overflow-y-auto"></div>
+        </div>
+
+        <div id="modal-ai-box" class="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 space-y-1">
+          <div class="font-semibold flex items-center gap-1.5 text-indigo-200">
+            <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+            <span>AI Qualification Evidence</span>
+          </div>
+          <p id="modal-ai-reason" class="text-slate-300"></p>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold rounded-xl">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORT MODAL INSPECTOR -->
+  <div id="report-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <div class="flex items-start justify-between border-b border-slate-800 pb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 id="report-modal-title" class="text-lg font-bold text-white">Execution Report</h3>
+            <span id="report-modal-mode-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold uppercase"></span>
+            <span id="report-modal-status-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold uppercase"></span>
+          </div>
+          <p id="report-modal-meta" class="text-xs text-slate-400 mt-1">Timestamp • Duration • Channel</p>
+        </div>
+        <button onclick="closeReportModal()" class="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Funnel Metrics Table -->
+      <div class="space-y-2">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Funnel Performance Breakdown</span>
+        <div id="report-modal-funnel" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center text-xs"></div>
+      </div>
+
+      <!-- Rejection Breakdown -->
+      <div id="report-modal-rejections-box" class="space-y-2 hidden">
+        <span class="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="filter" class="w-3.5 h-3.5"></i>
+          <span>AI Rejection Reasons</span>
+        </span>
+        <div id="report-modal-rejections" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5 text-xs text-slate-300"></div>
+      </div>
+
+      <!-- Dispatches Failed -->
+      <div id="report-modal-failures-box" class="space-y-2 hidden">
+        <span class="text-xs font-semibold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+          <span>Failed Outreach Dispatches</span>
+        </span>
+        <div id="report-modal-failures" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5 text-xs text-rose-300"></div>
+      </div>
+
+      <!-- Activity Notes & Logs -->
+      <div id="report-modal-notes-box" class="space-y-2 hidden">
+        <span class="text-xs font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+          <span>Activity Notes & Details</span>
+        </span>
+        <div id="report-modal-notes" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5 text-xs text-slate-300 max-h-48 overflow-y-auto"></div>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="closeReportModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold rounded-xl cursor-pointer">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT APP LOGIC -->
+  <script>
+    let activeTab = 'leads';
+    let cachedLeads = [];
+
+    function switchTab(tab) {
+      activeTab = tab;
+      ['leads', 'logs', 'reports', 'settings'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-btn-${t}`);
+        btn.classList.remove('border-indigo-500', 'text-white');
+        btn.classList.add('border-transparent', 'text-slate-400');
+      });
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-btn-${tab}`);
+      activeBtn.classList.remove('border-transparent', 'text-slate-400');
+      activeBtn.classList.add('border-indigo-500', 'text-white');
+
+      if (tab === 'leads') loadLeads();
+      if (tab === 'reports') loadReports();
+      if (tab === 'settings') loadSettings();
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        // Update KPIs
+        document.getElementById('kpi-total-leads').textContent = data.total_leads || 0;
+        document.getElementById('kpi-ai-qualified').textContent = data.ai_qualified_count || 0;
+        document.getElementById('kpi-named-contacts').textContent = data.named_contacts_count || 0;
+        document.getElementById('kpi-mx-valid').textContent = `${data.mx_valid_count || 0} MX valid`;
+        document.getElementById('kpi-drafted').textContent = (data.status_counts && data.status_counts['drafted']) || 0;
+
+        // System state badge
+        const dot = document.getElementById('status-dot');
+        const text = document.getElementById('status-text');
+        if (data.is_running) {
+          dot.className = "w-2 h-2 rounded-full bg-indigo-400 animate-ping";
+          text.textContent = `Running ${data.current_action.toUpperCase()}...`;
+          text.className = "text-indigo-300 font-semibold";
+        } else if (data.emergency_stop) {
+          dot.className = "w-2 h-2 rounded-full bg-rose-500";
+          text.textContent = "Emergency Stop Active";
+          text.className = "text-rose-400 font-semibold";
+        } else {
+          dot.className = "w-2 h-2 rounded-full bg-emerald-400";
+          text.textContent = "Ready";
+          text.className = "text-slate-300";
+        }
+
+        // Logs update
+        if (data.recent_logs && data.recent_logs.length > 0) {
+          const consoleEl = document.getElementById('logs-console');
+          consoleEl.innerHTML = data.recent_logs.map(l => `<div>${l}</div>`).join('');
+          consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+      } catch (err) {
+        console.error("Status fetch error", err);
+      }
+    }
+
+    async function loadLeads() {
+      const search = document.getElementById('leads-search').value;
+      const status = document.getElementById('leads-filter-status').value;
+      try {
+        const res = await fetch(`/api/leads?status=${status}&search=${encodeURIComponent(search)}`);
+        const data = await res.json();
+        cachedLeads = data.leads || [];
+        renderLeads(cachedLeads);
+      } catch (err) {
+        console.error("Error loading leads", err);
+      }
+    }
+
+    function renderLeads(leads) {
+      const tbody = document.getElementById('leads-table-body');
+      if (!leads || leads.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-slate-500"><i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 stroke-1"></i>No matching leads found.</td></tr>`;
+        lucide.createIcons();
+        return;
+      }
+
+      tbody.innerHTML = leads.map(l => {
+        const statusBadge = l.status === 'drafted' 
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">Draft in Gmail</span>'
+          : l.status === 'sent'
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Sent</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">Discovered</span>';
+
+        const contactLabel = l.contact_name 
+          ? `<div><span class="font-medium text-slate-100">${l.contact_name}</span>${l.contact_title ? ` <span class="text-xs text-indigo-400">(${l.contact_title})</span>` : ''}</div><div class="text-xs text-emerald-400 font-mono">&lt;${l.email}&gt;</div>`
+          : `<span class="text-xs text-slate-400 font-mono">${l.email || 'No email found'}</span>`;
+
+        const scoreBadge = l.score >= 50 
+          ? `<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${l.score}/100</span>`
+          : `<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-800 text-slate-400">${l.score}/100</span>`;
+
+        return `
+          <tr class="hover:bg-slate-900/80 transition">
+            <td class="py-3.5 px-4 font-medium text-white">
+              <div>${l.company}</div>
+              <a href="${l.website}" target="_blank" class="text-xs text-indigo-400 hover:underline flex items-center gap-1">${l.website.replace('https://', '')} <i data-lucide="external-link" class="w-3 h-3"></i></a>
+            </td>
+            <td class="py-3.5 px-4">${contactLabel}</td>
+            <td class="py-3.5 px-4">
+              <div class="flex items-center gap-2">
+                ${scoreBadge}
+                <span class="text-xs text-slate-400">${l.signal_name.replace('_', ' ')}</span>
+              </div>
+            </td>
+            <td class="py-3.5 px-4">${statusBadge}</td>
+            <td class="py-3.5 px-4 text-right">
+              <button onclick="viewLead(${l.id})" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition">
+                Inspect Draft
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function viewLead(id) {
+      const lead = cachedLeads.find(l => l.id === id);
+      if (!lead) return;
+
+      document.getElementById('modal-company').textContent = lead.company;
+      document.getElementById('modal-meta').innerHTML = `<strong>Sending To:</strong> <span class="text-emerald-400 font-mono">${lead.email}</span> ${lead.contact_name ? `(${lead.contact_name} - ${lead.contact_title || 'Decision Maker'})` : ''} • Match Score: ${lead.score}/100`;
+      document.getElementById('modal-subject').textContent = lead.subject || `Quick question about ${lead.company}`;
+      document.getElementById('modal-body').textContent = lead.body || (lead.evidence_text ? `Evidence: ${lead.evidence_text}` : 'No personalized body generated yet.');
+
+      if (lead.ai_reason) {
+        document.getElementById('modal-ai-box').classList.remove('hidden');
+        document.getElementById('modal-ai-reason').textContent = `${lead.ai_reason} (Confidence: ${lead.ai_confidence || 0}%)`;
+      } else {
+        document.getElementById('modal-ai-box').classList.add('hidden');
+      }
+
+      document.getElementById('email-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      document.getElementById('email-modal').classList.add('hidden');
+    }
+
+    async function triggerAction(action) {
+      try {
+        const res = await fetch(`/api/action/${action}`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message);
+        fetchStatus();
+      } catch (err) {
+        alert("Action failed: " + err);
+      }
+    }
+
+    let cachedReports = [];
+
+    function formatReportTime(isoStr, runId) {
+      if (isoStr) {
+        try {
+          const dt = new Date(isoStr);
+          if (!isNaN(dt.getTime())) {
+            return dt.toLocaleString(undefined, { 
+              month: 'short', day: 'numeric', year: 'numeric', 
+              hour: '2-digit', minute: '2-digit', second: '2-digit' 
+            });
+          }
+        } catch (e) {}
+      }
+      if (runId && runId.length >= 15 && runId.includes('_')) {
+        try {
+          const parts = runId.split('_');
+          const y = parts[0].substring(0, 4);
+          const m = parts[0].substring(4, 6);
+          const d = parts[0].substring(6, 8);
+          const h = parts[1].substring(0, 2);
+          const min = parts[1].substring(2, 4);
+          const sec = parts[1].substring(4, 6);
+          const dt = new Date(Date.UTC(+y, +m - 1, +d, +h, +min, +sec));
+          return dt.toLocaleString(undefined, { 
+            month: 'short', day: 'numeric', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit', second: '2-digit' 
+          });
+        } catch (e) {}
+      }
+      return runId || 'Unknown time';
+    }
+
+    function formatDuration(started, finished) {
+      if (!started || !finished) return '';
+      try {
+        const t1 = new Date(started).getTime();
+        const t2 = new Date(finished).getTime();
+        const diffSec = Math.max(0, Math.round((t2 - t1) / 1000));
+        if (diffSec < 60) return `${diffSec}s`;
+        const mins = Math.floor(diffSec / 60);
+        const secs = diffSec % 60;
+        return `${mins}m ${secs}s`;
+      } catch (e) {
+        return '';
+      }
+    }
+
+    async function loadReports() {
+      try {
+        const res = await fetch('/api/reports');
+        const reports = await res.json();
+        cachedReports = reports || [];
+        const container = document.getElementById('reports-list');
+        if (!reports || reports.length === 0) {
+          container.innerHTML = `
+            <div class="col-span-2 py-12 text-center text-slate-500 bg-slate-900/40 rounded-2xl border border-slate-800 space-y-3">
+              <i data-lucide="clipboard-list" class="w-10 h-10 mx-auto stroke-1 text-slate-600"></i>
+              <div class="text-sm font-medium text-slate-400">No execution reports recorded yet.</div>
+              <p class="text-xs text-slate-500">Run "Find Leads" or "Launch Outreach" to produce real-time audit reports.</p>
+              <button onclick="triggerAction('discover')" class="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition cursor-pointer">
+                Run Discovery Now
+              </button>
+            </div>
+          `;
+          lucide.createIcons();
+          return;
+        }
+
+        container.innerHTML = reports.map(r => {
+          const d = r.data || {};
+          const mode = (d.mode || 'run').toUpperCase();
+          const isFailed = d.status === 'failed';
+          const isInProgress = d.status === 'in_progress' || (!d.finished_at && !isFailed);
+          const statusBadge = isFailed
+            ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">Failed</span>'
+            : isInProgress
+            ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">In Progress...</span>'
+            : '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Completed</span>';
+          
+          const modeBadge = mode === 'DISCOVER'
+            ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">Discover</span>'
+            : mode === 'OUTREACH'
+            ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">Outreach</span>'
+            : '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Full Run</span>';
+
+          const timeLabel = formatReportTime(d.started_at, d.run_id);
+          const duration = formatDuration(d.started_at, d.finished_at);
+
+          const rejections = d.rejection_reasons || {};
+          const topRejectionKey = Object.keys(rejections)[0];
+          const rejectionPreview = topRejectionKey
+            ? `<div class="text-xs text-amber-300/80 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg truncate flex items-center gap-1.5"><i data-lucide="filter" class="w-3.5 h-3.5 shrink-0"></i> <span>Rejection: ${topRejectionKey} (${rejections[topRejectionKey]}x)</span></div>`
+            : '';
+
+          return `
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg hover:border-slate-700 transition">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                  ${modeBadge}
+                  ${statusBadge}
+                </div>
+                <div class="text-right">
+                  <div class="text-xs font-semibold text-slate-200">${timeLabel}</div>
+                  ${duration ? `<div class="text-[11px] text-slate-400">Duration: ${duration}</div>` : ''}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80">
+                  <div class="text-slate-400 font-medium">Scanned</div>
+                  <div class="text-base font-bold text-white mt-1">${d.prospects_scanned || 0}</div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80">
+                  <div class="text-slate-400 font-medium">Qualified</div>
+                  <div class="text-base font-bold text-emerald-400 mt-1">${d.ai_qualified || 0}</div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80">
+                  <div class="text-slate-400 font-medium">${mode === 'DISCOVER' ? 'Contacts' : 'Dispatched'}</div>
+                  <div class="text-base font-bold text-indigo-400 mt-1">${mode === 'DISCOVER' ? (d.contacts_found || 0) : (d.dispatched_success || 0)}</div>
+                </div>
+              </div>
+
+              <div class="text-xs text-slate-400 grid grid-cols-3 gap-2 py-1 px-1 bg-slate-950/40 rounded-lg">
+                <div class="truncate">Researched: <span class="text-slate-200 font-semibold">${d.deep_researches_conducted || 0}</span></div>
+                <div class="truncate">Blacklisted: <span class="text-rose-400 font-semibold">${d.prospects_blacklisted || 0}</span></div>
+                <div class="truncate">AI Rejected: <span class="text-amber-400 font-semibold">${d.ai_rejected || 0}</span></div>
+              </div>
+
+              ${rejectionPreview}
+
+              <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                <span class="text-xs text-slate-400 font-mono">ID: ${d.run_id}</span>
+                <div class="flex items-center gap-2">
+                  <button onclick="viewReport('${r.id}')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 transition flex items-center gap-1 cursor-pointer">
+                    <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                    <span>View Full Report</span>
+                  </button>
+                  <button onclick="deleteSingleReport('${r.id}')" title="Delete Report" class="p-1.5 text-xs rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700 transition cursor-pointer">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        lucide.createIcons();
+      } catch (err) {
+        console.error("Error loading reports", err);
+      }
+    }
+
+    function viewReport(id) {
+      const rep = cachedReports.find(r => r.id === id);
+      if (!rep) return;
+      const d = rep.data || {};
+      const mode = (d.mode || 'run').toUpperCase();
+      const isFailed = d.status === 'failed';
+
+      document.getElementById('report-modal-title').textContent = `Execution Report (${d.run_id})`;
+
+      const modeBadge = document.getElementById('report-modal-mode-badge');
+      modeBadge.textContent = mode;
+      modeBadge.className = mode === 'DISCOVER'
+        ? 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20'
+        : 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20';
+
+      const isInProgress = d.status === 'in_progress' || (!d.finished_at && !isFailed);
+      const statusBadge = document.getElementById('report-modal-status-badge');
+      statusBadge.textContent = isFailed ? 'FAILED' : isInProgress ? 'IN PROGRESS' : 'COMPLETED';
+      statusBadge.className = isFailed
+        ? 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20'
+        : isInProgress
+        ? 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20'
+        : 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+
+      const timeLabel = formatReportTime(d.started_at, d.run_id);
+      const duration = formatDuration(d.started_at, d.finished_at);
+      document.getElementById('report-modal-meta').textContent = `${timeLabel} • Duration: ${duration || 'N/A'} • Channel: ${d.channel_used || 'Default'}`;
+
+      // Funnel breakdown
+      const funnel = document.getElementById('report-modal-funnel');
+      const stats = [
+        { label: 'Prospects Scanned', val: d.prospects_scanned || 0, color: 'text-white' },
+        { label: 'Blacklisted / Filtered', val: d.prospects_blacklisted || 0, color: 'text-rose-400' },
+        { label: 'Deep Researched', val: d.deep_researches_conducted || 0, color: 'text-sky-400' },
+        { label: 'Contacts Found', val: d.contacts_found || 0, color: 'text-indigo-400' },
+        { label: 'AI Qualified', val: d.ai_qualified || 0, color: 'text-emerald-400' },
+        { label: 'AI Rejected', val: d.ai_rejected || 0, color: 'text-amber-400' },
+        { label: 'Emails Personalized', val: d.emails_personalized || 0, color: 'text-purple-400' },
+        { label: 'Dispatched Success', val: d.dispatched_success || 0, color: 'text-emerald-400' },
+        { label: 'Dispatched Failed', val: d.dispatched_failed || 0, color: 'text-rose-400' },
+      ];
+      funnel.innerHTML = stats.map(s => `
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+          <div class="text-[11px] text-slate-400">${s.label}</div>
+          <div class="text-base font-bold ${s.color} mt-0.5">${s.val}</div>
+        </div>
+      `).join('');
+
+      // Rejections
+      const rejBox = document.getElementById('report-modal-rejections-box');
+      const rejEl = document.getElementById('report-modal-rejections');
+      const rejections = d.rejection_reasons || {};
+      const rejKeys = Object.keys(rejections);
+      if (rejKeys.length > 0) {
+        rejBox.classList.remove('hidden');
+        rejEl.innerHTML = rejKeys.map(k => `
+          <div class="flex items-start justify-between gap-2 border-b border-slate-800/60 pb-1.5 last:border-0 last:pb-0">
+            <span class="text-slate-300">${k}</span>
+            <span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20 shrink-0">${rejections[k]}x</span>
+          </div>
+        `).join('');
+      } else {
+        rejBox.classList.add('hidden');
+      }
+
+      // Failures
+      const failBox = document.getElementById('report-modal-failures-box');
+      const failEl = document.getElementById('report-modal-failures');
+      const failures = d.failures || [];
+      if (failures.length > 0) {
+        failBox.classList.remove('hidden');
+        failEl.innerHTML = failures.map(f => `
+          <div class="border-b border-slate-800/60 pb-1.5 last:border-0 last:pb-0">
+            <span class="font-semibold text-rose-300">${f.company || 'Unknown'}</span> (${f.target || '-'}): <span class="text-slate-300">${f.error || 'Failed'}</span>
+          </div>
+        `).join('');
+      } else {
+        failBox.classList.add('hidden');
+      }
+
+      // Notes
+      const notesBox = document.getElementById('report-modal-notes-box');
+      const notesEl = document.getElementById('report-modal-notes');
+      const notes = d.notes || [];
+      if (notes.length > 0) {
+        notesBox.classList.remove('hidden');
+        notesEl.innerHTML = notes.map(n => `<div>• ${n}</div>`).join('');
+      } else {
+        notesBox.classList.add('hidden');
+      }
+
+      document.getElementById('report-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeReportModal() {
+      document.getElementById('report-modal').classList.add('hidden');
+    }
+
+    async function deleteSingleReport(id) {
+      if (!confirm(`Are you sure you want to delete report ${id}?`)) return;
+      try {
+        const res = await fetch(`/api/reports/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          loadReports();
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Delete failed: " + err);
+      }
+    }
+
+    async function clearAllReports() {
+      if (!confirm("Are you sure you want to clear all execution reports?")) return;
+      try {
+        const res = await fetch('/api/reports', { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          loadReports();
+        } else {
+          alert("Error: " + data.message);
+        }
+      } catch (err) {
+        alert("Clear failed: " + err);
+      }
+    }
+
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/config');
+        const cfg = await res.json();
+
+        document.getElementById('cfg-offer-name').value = cfg.offer?.name || '';
+        document.getElementById('cfg-sender-name').value = cfg.offer?.sender_name || '';
+        document.getElementById('cfg-offer-desc').value = cfg.offer?.description || '';
+        document.getElementById('cfg-cta').value = cfg.offer?.cta || '';
+
+        document.getElementById('cfg-industries').value = (cfg.target?.industries || []).join(', ');
+        document.getElementById('cfg-countries').value = (cfg.target?.countries || []).join(', ');
+        document.getElementById('cfg-daily-cap').value = cfg.outreach?.daily_cap || 25;
+        document.getElementById('cfg-send-mode').value = cfg.outreach?.send_mode || 'draft';
+
+        document.getElementById('cfg-blacklist').value = (cfg.filters?.blacklist_keywords || []).join(', ');
+        document.getElementById('cfg-emergency-stop').checked = Boolean(cfg.filters?.emergency_stop);
+      } catch (err) {
+        console.error("Error loading settings", err);
+      }
+    }
+
+    async function saveSettings() {
+      const payload = {
+        offer_name: document.getElementById('cfg-offer-name').value,
+        sender_name: document.getElementById('cfg-sender-name').value,
+        offer_description: document.getElementById('cfg-offer-desc').value,
+        cta: document.getElementById('cfg-cta').value,
+        target_industries: document.getElementById('cfg-industries').value.split(',').map(s => s.trim()).filter(Boolean),
+        target_countries: document.getElementById('cfg-countries').value.split(',').map(s => s.trim()).filter(Boolean),
+        daily_cap: parseInt(document.getElementById('cfg-daily-cap').value) || 25,
+        send_mode: document.getElementById('cfg-send-mode').value,
+        blacklist_keywords: document.getElementById('cfg-blacklist').value.split(',').map(s => s.trim()).filter(Boolean),
+        emergency_stop: document.getElementById('cfg-emergency-stop').checked,
+      };
+
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        alert("Settings saved successfully!");
+        fetchStatus();
+      } catch (err) {
+        alert("Failed to save settings: " + err);
+      }
+    }
+
+    function refreshAll() {
+      fetchStatus();
+      if (activeTab === 'leads') loadLeads();
+      if (activeTab === 'reports') loadReports();
+    }
+
+    // Auto-refresh timer
+    setInterval(fetchStatus, 4000);
+
+    // Initial load
+    fetchStatus();
+    loadLeads();
+    lucide.createIcons();
+  </script>
+</body>
+</html>

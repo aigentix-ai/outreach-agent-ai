@@ -1,0 +1,112 @@
+# ==============================================================================
+# 1. MODULAR OFFER & NICHE CONFIGURATION
+# Easily change the offer, service description, or ICP for any skill or niche.
+# ==============================================================================
+offer:
+  name: AI Receptionist
+  description: AI receptionist that answers inbound calls, captures leads, handles FAQs and books appointments.
+  sender_name: Ahmad
+  cta: Open to a quick 10-minute chat this week?
+
+target:
+  countries: ["United States"]
+  industries: ["plumber", "HVAC", "dentist", "med spa", "roofing"]
+  max_search_results_per_query: 20
+
+# Buying signals that trigger outreach
+signals:
+  - name: hiring_receptionist
+    query_patterns:
+      - '"hiring receptionist" {industry}'
+      - '"front desk" hiring {industry}'
+    score: 35
+  - name: unanswered_calls
+    query_patterns:
+      - '"no one answers" {industry}'
+      - '"never answers the phone" {industry}'
+    score: 45
+  - name: appointment_friction
+    query_patterns:
+      - '"call to schedule" {industry}'
+    score: 15
+
+# ==============================================================================
+# 2. DYNAMIC FILTERS & EMERGENCY CONTROLS
+# Restrict channels, block unwanted keywords/domains, or instantly halt outreach.
+# ==============================================================================
+filters:
+  # Instantly stop or avoid companies matching these keywords in name or text
+  blacklist_keywords:
+    - "crypto"
+    - "forex"
+    - "casino"
+    - "gambling"
+    - "adult"
+    - "agency"
+    - "recruiter"
+    - "intern"
+    - "student"
+  # Domains to completely skip
+  blacklist_domains:
+    - "example.com"
+    - "competitor.com"
+  # Industries to exclude dynamically
+  excluded_industries: []
+  # Emergency kill switch: set to true to instantly block all draft creation and sending
+  emergency_stop: false
+
+# ==============================================================================
+# 3. CHANNELS & MULTI-ACCOUNT SETTINGS
+# Switch sending accounts or channels effortlessly.
+# ==============================================================================
+channels:
+  active_channel: default_gmail # choose active account from the list below
+  accounts:
+    default_gmail:
+      type: gmail
+      credentials_file: credentials.json
+      token_file: token.json
+      daily_cap: 25
+      sender_name: Ahmad
+    secondary_gmail:
+      type: gmail
+      credentials_file: credentials_secondary.json
+      token_file: token_secondary.json
+      daily_cap: 50
+      sender_name: Sales Team
+
+# ==============================================================================
+# 4. OUTREACH & VOLUME CONTROL
+# Scale volume up or down and adjust pacing.
+# ==============================================================================
+outreach:
+  send_mode: draft # 'draft' (recommended) or 'send'
+  daily_cap: 25    # Max emails to draft/send per run
+  delay_seconds: 1.0 # Pacing delay between emails to avoid rate limits
+  include_opt_out: true
+  subject_template: "Quick question about {company}"
+
+# ==============================================================================
+# 5. AI QUALIFICATION & BRAIN SETTINGS
+# ==============================================================================
+qualification:
+  min_score: 50
+  require_public_email: true
+
+contact_intelligence:
+  enabled: true
+  max_search_results: 6
+  min_confidence: 45
+  # Only publicly observed emails are selected. No fabricated guesses.
+
+ai:
+  enabled: true
+  provider_order: ["nvidia", "openrouter", "gemini"]
+  min_heuristic_score_before_ai: 15
+  min_confidence: 55
+  max_email_words: 90
+
+crawler:
+  timeout_seconds: 12
+  max_pages_per_domain: 7
+  user_agent: "Mozilla/5.0 (compatible; OutreachResearchBot/1.0)"

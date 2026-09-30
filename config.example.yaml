@@ -1,73 +1,83 @@
 offer:
   name: AI Commercial Video Production
-  description: High-converting AI video commercials and video ads for growing brands that replace stale static images, boost ROAS, and cut production costs by 80%.
-  sender_name: Your Name
-  cta: Mind if I send over a quick 20-second sample video tailored for your brand?
-
+  description: Producing high-converting 15-30s AI commercial video ads that replace
+    exhausted static image ads to lower customer acquisition costs and boost ad spend
+    returns.
+  sender_name: Saad
+  cta: Would you be open to seeing a free 30-second AI video storyboard concepts for
+    your best-selling product this week?
 target:
   countries:
-    - United States
-    - United Kingdom
-    - Canada
+  - United States
+  - United Kingdom
+  - Canada
+  - Australia
   industries:
-    - skincare brand
-    - apparel brand
-    - beverage brand
-    - supplement brand
-    - pet brand
-    - home goods
-  cities: []
+  - Skincare & Beauty
+  - Apparel & Athleisure
+  - Functional Beverages & Nutrition
+  - Supplements & Wellness
+  - Pet Care Essentials
+  - Home Goods & Innovative Gadgets
+  cities:
+  - Miami
+  - Los Angeles
+  - New York
+  - Austin
+  - London
+  - Toronto
   max_search_results_per_query: 20
-
 discovery:
   sources:
-    meta_ads: true      # Primary: finds active advertisers running ads on FB & IG
-    duckduckgo: true    # Finds emerging DTC brands and product launches
-    social_radar: true  # Reddit, Quora, and discussion review forums
+    meta_ads: true
+    duckduckgo: true
+    social_radar: false
     csv_import: false
   csv_path: leads_input.csv
   meta:
     access_token: ''
-
 signals:
-  - name: static_ad_creative
-    query_patterns:
-      - 'site:facebook.com/ads/library "{industry}"'
-      - '"{industry}" "shop our collection" "new launch"'
-    score: 55
-  - name: video_creative_fatigue
-    query_patterns:
-      - '"{industry}" "best seller" "order now"'
-      - 'site:reddit.com inurl:comments "{industry}" ("recommend" OR "ad looks")'
-    score: 45
-  - name: growing_dtc_brand
-    query_patterns:
-      - '"featured in" "{industry}" "our story"'
-      - '"new arrivals" "{industry}"'
-    score: 40
-
+- name: static_ad_creative
+  query_patterns:
+  - site:facebook.com/ads/library "{industry}"
+  - '"{industry}" "shop our collection" "new launch"'
+  score: 55
+- name: video_creative_fatigue
+  query_patterns:
+  - '"{industry}" "best seller" "order now"'
+  - site:reddit.com inurl:comments "{industry}" ("recommend" OR "ad looks")
+  score: 45
+- name: growing_dtc_brand
+  query_patterns:
+  - '"featured in" "{industry}" "our story"'
+  - '"new arrivals" "{industry}"'
+  score: 40
 filters:
   blacklist_keywords:
-    - crypto
-    - casino
-    - gambling
-    - adult
-    - nike
-    - adidas
-    - apple
-    - amazon
-    - walmart
-    - target
+  - Nike
+  - Adidas
+  - Apple
+  - Amazon
+  - Walmart
+  - Target
+  - eBay
+  - job
+  - intern
+  - hiring
+  - charity
+  - free
+  - non-profit
+  - cheap
+  - recruitment
   blacklist_domains:
-    - example.com
-    - amazon.com
-    - target.com
-    - walmart.com
-    - shein.com
-    - temu.com
+  - example.com
+  - amazon.com
+  - target.com
+  - walmart.com
+  - shein.com
+  - temu.com
   excluded_industries: []
   emergency_stop: false
-
 channels:
   active_channel: default_gmail
   accounts:
@@ -77,37 +87,33 @@ channels:
       token_file: token.json
       daily_cap: 25
       sender_name: Your Name
-
 outreach:
   send_mode: draft
   daily_cap: 25
   delay_seconds: 2.0
   include_opt_out: true
-  subject_template: "Quick creative idea for {company}'s ads"
-
+  subject_template: Quick creative idea for {company}'s ads
 qualification:
   min_score: 50
   require_public_email: true
-
 contact_intelligence:
   enabled: true
   max_search_results: 6
   min_confidence: 45
-
 ai:
   enabled: true
   provider_order:
-    - nvidia
-    - openrouter
-    - gemini
+  - nvidia
+  - openrouter
+  - gemini
   min_heuristic_score_before_ai: 15
   min_confidence: 55
   max_email_words: 85
-
 crawler:
   timeout_seconds: 12
   max_pages_per_domain: 5
-  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+  user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+    like Gecko) Chrome/128.0.0.0 Safari/537.36
   min_delay_seconds: 1.5
   max_delay_seconds: 3.5
   enable_anti_blocking: true

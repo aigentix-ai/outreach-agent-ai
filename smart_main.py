@@ -9,11 +9,13 @@ import httpx
 from bs4 import BeautifulSoup
 
 import main as core
+import ai_agent
 from ai_agent import available as ai_available
 from ai_agent import qualify_lead, write_email
 from contact_agent import find_best_contact
 from reporter import RunReport
 import meta_agent
+import stop_controller
 
 
 EXTRA_COLUMNS = {
@@ -58,6 +60,8 @@ def smart_research(candidate: core.Candidate, config: dict) -> tuple[core.Candid
 
     with httpx.Client(timeout=timeout, headers={"User-Agent": ua}) as client:
         for path in pages:
+            if stop_controller.is_stop_requested(config):
+                break
             url = urljoin(candidate.website, path)
             html = core.fetch_html(client, url)
             if not html:
@@ -144,6 +148,24 @@ def discover(conn: sqlite3.Connection, config: dict, report: RunReport | None = 
         report = RunReport(mode="discover")
         should_finish = True
 
+    # Check Kill Switch before starting
+    if stop_controller.is_stop_requested(config):
+        print("\n[EMERGENCY STOP] Kill switch is active. Halting discovery before start.")
+        if should_finish:
+            report.finish()
+        return report
+
+    # If key targeting or offer fields are empty, let AI decide the best parameters automatically
+    if not config.get("target", {}).get("industries") or not config.get("offer", {}).get("name"):
+        inferred = ai_agent.infer_campaign_settings(config)
+        config.setdefault("target", {})["industries"] = inferred["target_industries"]
+        config.setdefault("target", {})["countries"] = inferred["target_countries"]
+        config.setdefault("target", {})["cities"] = inferred["target_cities"]
+        config.setdefault("offer", {})["name"] = inferred["offer_name"]
+        config.setdefault("offer", {})["description"] = inferred["offer_description"]
+        config.setdefault("offer", {})["cta"] = inferred["cta"]
+        print(f"[ai-autofill] Empty settings detected. AI auto-applied commercial video parameters: {inferred['target_industries']}")
+
     candidates = core.search_candidates(config, reporter=report)
     print(f"Search produced {len(candidates)} candidate result(s). Researching + contact-enriching + qualifying...")
     if report:
@@ -162,6 +184,11 @@ def discover(conn: sqlite3.Connection, config: dict, report: RunReport | None = 
         print("[ai] No configured LLM provider key found; using heuristic qualification fallback.")
 
     for i, candidate in enumerate(candidates, 1):
+        if stop_controller.is_stop_requested(config):
+            print("\n[EMERGENCY STOP] Kill switch detected! Halting discovery loop immediately.")
+            report.notes.append("Discovery halted early by User Kill Switch.")
+            break
+
         candidate, research_text = smart_research(candidate, config)
 
         # Dynamic Blacklist Filter (Company, URL, or Website Research Text)
@@ -312,10 +339,9 @@ def outreach(conn: sqlite3.Connection, config: dict, channel: str | None = None,
     conn.row_factory = sqlite3.Row
 
     # 1. Emergency Stop Check
-    if config.get("filters", {}).get("emergency_stop", False):
+    if stop_controller.is_stop_requested(config):
         print("\n" + "!" * 65)
-        print(" [EMERGENCY STOP] filters.emergency_stop is TRUE in config.yaml.")
-        print(" All outreach dispatch and draft creation has been HALTED.")
+        print(" [EMERGENCY STOP] Kill Switch is active. All outreach has been HALTED.")
         print("!" * 65 + "\n")
         return report or RunReport(mode="outreach")
 
@@ -368,6 +394,10 @@ def outreach(conn: sqlite3.Connection, config: dict, channel: str | None = None,
         return report
     count = 0
     for row in rows:
+        if stop_controller.is_stop_requested(config):
+            print("\n[EMERGENCY STOP] Kill switch detected! Halting email dispatch immediately.")
+            report.notes.append("Outreach halted early by User Kill Switch.")
+            break
         if require_email and not row["email"]:
             continue
         if not row["email"]:

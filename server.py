@@ -21,9 +21,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
+import ai_agent
 import main as core
-import smart_main
 from reporter import REPORTS_DIR, RunReport
+import smart_main
+import stop_controller
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "leads.db"
@@ -89,6 +91,7 @@ class OutputInterceptor(io.TextIOBase):
 
 
 def run_pipeline_worker(action: str, channel: str | None = None) -> None:
+    stop_controller.clear_stop()
     task_state["is_running"] = True
     task_state["current_action"] = action
     task_state["started_at"] = datetime.now(timezone.utc).isoformat()
@@ -107,14 +110,24 @@ def run_pipeline_worker(action: str, channel: str | None = None) -> None:
 
         if action == "discover":
             smart_main.discover(conn, config, report=report)
-            append_log("Discovery completed successfully.")
+            if stop_controller.is_stop_requested(config):
+                append_log("Discovery stopped early by Kill Switch.")
+            else:
+                append_log("Discovery completed successfully.")
         elif action == "outreach":
             smart_main.outreach(conn, config, channel=channel, report=report)
-            append_log("Outreach completed successfully.")
+            if stop_controller.is_stop_requested(config):
+                append_log("Outreach stopped early by Kill Switch.")
+            else:
+                append_log("Outreach completed successfully.")
         elif action == "all":
             smart_main.discover(conn, config, report=report)
-            smart_main.outreach(conn, config, channel=channel, report=report)
-            append_log("Full pipeline completed successfully.")
+            if not stop_controller.is_stop_requested(config):
+                smart_main.outreach(conn, config, channel=channel, report=report)
+            if stop_controller.is_stop_requested(config):
+                append_log("Full run stopped early by Kill Switch.")
+            else:
+                append_log("Full pipeline completed successfully.")
     except BaseException as exc:
         report.notes.append(f"Execution Error: {str(exc)}")
         report.status = "failed"
@@ -133,7 +146,10 @@ def run_pipeline_worker(action: str, channel: str | None = None) -> None:
         sys.stdout = old_stdout
         task_state["is_running"] = False
         task_state["current_action"] = None
-        append_log(f"Action {action.upper()} finished.")
+        if stop_controller.is_stop_requested():
+            append_log(f"Action {action.upper()} halted by Emergency Kill Switch.")
+        else:
+            append_log(f"Action {action.upper()} finished.")
 
 
 @app.get("/api/status")
@@ -169,6 +185,8 @@ def get_status() -> dict[str, Any]:
         "current_action": task_state["current_action"],
         "started_at": task_state["started_at"],
         "ai_ready": bool(ai_ready),
+        "gemini_keys_count": len(ai_agent.get_gemini_api_keys()),
+        "gemini_ready": len(ai_agent.get_gemini_api_keys()) > 0,
         "total_leads": total_leads,
         "status_counts": status_counts,
         "ai_qualified_count": ai_count,
@@ -176,7 +194,7 @@ def get_status() -> dict[str, Any]:
         "direct_matches_count": direct_match,
         "mx_valid_count": mx_valid,
         "active_channel": config.get("channels", {}).get("active_channel", "default_gmail"),
-        "emergency_stop": config.get("filters", {}).get("emergency_stop", False),
+        "emergency_stop": stop_controller.is_stop_requested(config),
         "recent_logs": recent_logs,
     }
 
@@ -347,9 +365,61 @@ class ConfigUpdateRequest(BaseModel):
     discovery_csv_path: str = "leads_input.csv"
 
 
+@app.post("/api/config/ai-fill")
+def ai_fill_config() -> dict[str, Any]:
+    """AI automatically decides optimal campaign parameters if fields are blank or requested."""
+    config = core.load_config()
+    inferred = ai_agent.infer_campaign_settings(config)
+
+    offer = config.setdefault("offer", {})
+    offer["name"] = inferred["offer_name"]
+    offer["description"] = inferred["offer_description"]
+    offer["sender_name"] = inferred["sender_name"]
+    offer["cta"] = inferred["cta"]
+
+    target = config.setdefault("target", {})
+    target["industries"] = inferred["target_industries"]
+    target["countries"] = inferred["target_countries"]
+    target["cities"] = inferred["target_cities"]
+
+    filters = config.setdefault("filters", {})
+    filters["blacklist_keywords"] = inferred["blacklist_keywords"]
+
+    CONFIG_PATH.write_text(yaml.dump(config, sort_keys=False), encoding="utf-8")
+    append_log("✨ AI auto-filled optimal settings for AI Commercial Video.")
+    return {
+        "success": True,
+        "message": "AI filled optimal campaign parameters!",
+        "inferred": inferred,
+        "config": config,
+    }
+
+
 @app.post("/api/config")
 def update_config(data: ConfigUpdateRequest) -> dict[str, Any]:
     config = core.load_config()
+
+    # If key fields are left empty, let AI decide the best parameters automatically
+    if not data.offer_name.strip() or not data.target_industries or not data.cta.strip():
+        inferred = ai_agent.infer_campaign_settings(config)
+        if not data.offer_name.strip():
+            data.offer_name = inferred["offer_name"]
+        if not data.offer_description.strip():
+            data.offer_description = inferred["offer_description"]
+        if not data.sender_name.strip():
+            data.sender_name = inferred["sender_name"]
+        if not data.cta.strip():
+            data.cta = inferred["cta"]
+        if not data.target_industries:
+            data.target_industries = inferred["target_industries"]
+        if not data.target_countries:
+            data.target_countries = inferred["target_countries"]
+        if not data.target_cities:
+            data.target_cities = inferred["target_cities"]
+        if not data.blacklist_keywords:
+            data.blacklist_keywords = inferred["blacklist_keywords"]
+        append_log("AI automatically populated empty campaign settings.")
+
     offer = config.setdefault("offer", {})
     offer["name"] = data.offer_name
     offer["description"] = data.offer_description
@@ -369,6 +439,13 @@ def update_config(data: ConfigUpdateRequest) -> dict[str, Any]:
     filters["blacklist_keywords"] = data.blacklist_keywords
     filters["emergency_stop"] = data.emergency_stop
 
+    # Synchronize stop controller state immediately
+    if data.emergency_stop:
+        stop_controller.request_stop()
+        append_log("🛑 Emergency Kill Switch engaged via Settings.")
+    else:
+        stop_controller.clear_stop()
+
     discovery = config.setdefault("discovery", {})
     sources = discovery.setdefault("sources", {})
     sources["duckduckgo"] = data.discovery_ddg
@@ -385,7 +462,7 @@ def update_config(data: ConfigUpdateRequest) -> dict[str, Any]:
     except Exception:
         pass
     append_log("Settings updated successfully via Dashboard.")
-    return {"success": True, "message": "Settings saved"}
+    return {"success": True, "message": "Settings saved", "config": config}
 
 
 class ThemeUpdateRequest(BaseModel):
@@ -423,6 +500,19 @@ def set_theme(data: ThemeUpdateRequest, response: Response) -> dict[str, Any]:
         samesite="lax",
     )
     return {"success": True, "theme": theme}
+
+
+@app.post("/api/action/stop")
+def stop_pipeline_action() -> dict[str, Any]:
+    stop_controller.request_stop()
+    curr = task_state.get("current_action")
+    task_state["is_running"] = False
+    task_state["current_action"] = None
+    append_log("🛑 EMERGENCY KILL SWITCH ACTIVATED! Halting all running tasks immediately...")
+    return {
+        "success": True,
+        "message": f"Emergency Kill Switch activated. Stopped {curr or 'active task'}.",
+    }
 
 
 @app.post("/api/action/{action_name}")

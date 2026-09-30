@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from ddgs import DDGS
 
 import main as core
+import stop_controller
 
 
 def _extract_domains_from_text(text: str) -> list[str]:
@@ -78,6 +79,8 @@ def search_discussions(industry: str, city: str = "", max_results: int = 8) -> l
     seen: set[str] = set()
 
     for q in queries:
+        if stop_controller.is_stop_requested():
+            break
         try:
             results = core.fetch_ddg_results(q.strip(), max_results=max_results)
         except Exception as exc:

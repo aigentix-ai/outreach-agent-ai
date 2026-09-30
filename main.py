@@ -39,6 +39,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import meta_agent
 import social_radar
+import stop_controller
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "leads.db"
@@ -372,6 +373,10 @@ def search_candidates(config: dict, reporter=None) -> list[Candidate]:
     found: list[Candidate] = []
     seen_websites: set[str] = set()
 
+    if stop_controller.is_stop_requested(config):
+        print("[STOP] Search aborted: Emergency Kill Switch is active.")
+        return found
+
     # 1. Direct CSV list import
     if use_csv:
         csv_path = discovery.get("csv_path", "leads_input.csv")
@@ -540,7 +545,11 @@ def search_candidates(config: dict, reporter=None) -> list[Candidate]:
 
 
 def fetch_html(client: httpx.Client, url: str, max_retries: int = 2) -> str:
+    if stop_controller.is_stop_requested():
+        return ""
     for attempt in range(max_retries + 1):
+        if stop_controller.is_stop_requested():
+            return ""
         try:
             headers = get_stealth_headers()
             r = client.get(url, headers=headers, follow_redirects=True)

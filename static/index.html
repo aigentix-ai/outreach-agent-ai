@@ -109,10 +109,13 @@
       </div>
 
       <!-- Live Job Ticker (When running) -->
-      <div id="live-job-ticker" class="hidden items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 dark:bg-indigo-950/60 dark:border-indigo-800/80 dark:text-indigo-300 text-xs font-medium animate-pulse">
+      <div id="live-job-ticker" class="hidden items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 dark:bg-indigo-950/60 dark:border-indigo-800/80 dark:text-indigo-300 text-xs font-medium">
         <span class="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
         <span id="live-ticker-text">Running DISCOVER...</span>
         <span id="live-ticker-timer" class="font-mono text-[11px] font-bold">0s</span>
+        <button onclick="stopAction()" id="btn-stop-ticker" class="ml-1.5 px-2 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs transition cursor-pointer" title="Halt current active job">
+          <i data-lucide="square" class="w-3 h-3 fill-current"></i> Stop
+        </button>
       </div>
 
       <!-- Controls & Actions -->
@@ -142,6 +145,12 @@
         <button onclick="triggerAction('all')" id="btn-all" class="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-500 hover:opacity-95 text-white transition flex items-center gap-1.5 shadow-md shadow-indigo-500/25 cursor-pointer">
           <i data-lucide="play" class="w-4 h-4"></i>
           <span class="hidden sm:inline">Full Auto Run</span>
+        </button>
+
+        <!-- Emergency Kill Switch Master Button -->
+        <button onclick="stopAction()" id="btn-kill-switch-header" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-bold rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:text-rose-400 dark:border-rose-500/30 transition flex items-center gap-1.5 shadow-xs cursor-pointer" title="Emergency Stop All Tasks">
+          <i data-lucide="octagon" class="w-4 h-4 text-rose-500"></i>
+          <span class="hidden sm:inline">Kill Switch</span>
         </button>
       </div>
 
@@ -394,14 +403,20 @@
     <div id="tab-settings" class="hidden max-w-4xl space-y-6">
       <div class="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-6 shadow-xs transition">
         
-        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 gap-3">
           <div>
             <h2 class="text-lg font-bold text-slate-900 dark:text-white">Niche & Offer Setup</h2>
             <p class="text-xs text-slate-500 dark:text-slate-400">Personalize value proposition, target industries, and volume caps.</p>
           </div>
-          <button onclick="loadSettings()" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition flex items-center gap-1">
-            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Discard Changes
-          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="aiAutoFillSettings()" id="btn-ai-autofill" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-500 hover:opacity-95 text-white transition flex items-center gap-1.5 shadow-md shadow-indigo-500/20 cursor-pointer" title="AI automatically fills empty fields with best commercial video campaign parameters">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span>✨ Let AI Decide / Auto-Fill</span>
+            </button>
+            <button onclick="loadSettings()" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition flex items-center gap-1">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Discard
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -517,7 +532,7 @@
               <span class="text-sm font-semibold text-rose-500 dark:text-rose-400 block">Emergency Kill Switch</span>
               <span class="text-xs text-slate-500 dark:text-slate-400">Immediately freeze all email drafting and sending.</span>
             </div>
-            <input type="checkbox" id="cfg-emergency-stop" class="w-5 h-5 accent-rose-500 cursor-pointer">
+            <input type="checkbox" id="cfg-emergency-stop" onchange="onEmergencyStopToggle(this.checked)" class="w-5 h-5 accent-rose-500 cursor-pointer">
           </div>
         </div>
 
@@ -842,6 +857,18 @@
             jobTimerInterval = null;
           }
           jobStartTime = null;
+        }
+
+        // Kill switch indicator
+        const killBtn = document.getElementById('btn-kill-switch-header');
+        if (killBtn) {
+          if (data.emergency_stop) {
+            killBtn.className = "px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-bold rounded-xl bg-rose-600 text-white border border-rose-700 transition flex items-center gap-1.5 shadow-sm cursor-pointer";
+            killBtn.innerHTML = '<i data-lucide="octagon" class="w-4 h-4 fill-white text-white"></i><span class="hidden sm:inline">Halted</span>';
+          } else {
+            killBtn.className = "px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-bold rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:text-rose-400 dark:border-rose-500/30 transition flex items-center gap-1.5 shadow-xs cursor-pointer";
+            killBtn.innerHTML = '<i data-lucide="octagon" class="w-4 h-4 text-rose-500"></i><span class="hidden sm:inline">Kill Switch</span>';
+          }
         }
 
         // Logs update with syntax highlighting
@@ -1220,6 +1247,61 @@
       }
     }
 
+    async function stopAction() {
+      const headerBtn = document.getElementById('btn-kill-switch-header');
+      const tickerBtn = document.getElementById('btn-stop-ticker');
+      if (headerBtn) { headerBtn.disabled = true; headerBtn.classList.add('opacity-75'); }
+      if (tickerBtn) { tickerBtn.disabled = true; }
+      try {
+        const res = await fetch('/api/action/stop', { method: 'POST' });
+        const data = await res.json();
+        showToast(data.message || '🛑 Emergency Kill Switch engaged! Pipeline halted.', 'warning');
+        fetchStatus();
+      } catch (err) {
+        showToast('Kill Switch error: ' + err, 'error');
+      } finally {
+        if (headerBtn) { headerBtn.disabled = false; headerBtn.classList.remove('opacity-75'); }
+        if (tickerBtn) { tickerBtn.disabled = false; }
+        lucide.createIcons();
+      }
+    }
+
+    async function onEmergencyStopToggle(isChecked) {
+      if (isChecked) {
+        await stopAction();
+      } else {
+        await saveSettings();
+      }
+    }
+
+    async function aiAutoFillSettings() {
+      const btn = document.getElementById('btn-ai-autofill');
+      const origText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="flex items-center gap-1.5"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Analyzing...</span>';
+        lucide.createIcons();
+      }
+      try {
+        const res = await fetch('/api/config/ai-fill', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✨ AI auto-filled optimal Commercial Video parameters!', 'success');
+          await loadSettings();
+        } else {
+          showToast('Notice: ' + data.message, 'warning');
+        }
+      } catch (err) {
+        showToast('AI Auto-Fill error: ' + err, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origText;
+          lucide.createIcons();
+        }
+      }
+    }
+
     function formatReportTime(isoStr, runId) {
       if (isoStr) {
         try {
@@ -1546,6 +1628,7 @@
         });
         const data = await res.json();
         showToast("Settings saved successfully!", 'success');
+        await loadSettings();
         fetchStatus();
       } catch (err) {
         showToast("Failed to save settings: " + err, 'error');

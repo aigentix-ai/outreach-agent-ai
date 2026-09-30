@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from ddgs import DDGS
 
 import main as core
+import stop_controller
 
 ROOT = Path(__file__).resolve().parent
 
@@ -275,9 +276,13 @@ def search_meta_candidates(config: dict) -> list[core.Candidate]:
 
     all_candidates: list[core.Candidate] = []
     for ind in industries:
+        if stop_controller.is_stop_requested(config):
+            break
         if ind.lower() in excluded:
             continue
         for city in cities:
+            if stop_controller.is_stop_requested(config):
+                break
             loc_label = f" in {city}" if city else ""
             print(f"[meta-search] Scanning Meta Ads & Facebook pages for: {ind}{loc_label}")
             # Official API

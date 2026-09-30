@@ -3,13 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OutreachAgent Studio</title>
+  <title>OutreachAgent Studio • Autonomous B2B Prospecting</title>
+  
+  <!-- Anti-FOUC Theme Pre-loader -->
+  <script>
+    (function() {
+      try {
+        function getCookie(name) {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+          return null;
+        }
+        let theme = null;
+        try { theme = localStorage.getItem('theme'); } catch (e) {}
+        if (!theme) theme = getCookie('theme');
+        if (!theme) {
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          theme = prefersDark ? 'dark' : 'light';
+        }
+        if (theme === 'light') {
+          document.documentElement.classList.remove('dark');
+        } else {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (err) {}
+    })();
+  </script>
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts: Inter -->
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
@@ -24,6 +51,7 @@
           colors: {
             brand: {
               50: '#eef2ff',
+              100: '#e0e7ff',
               500: '#6366f1',
               600: '#4f46e5',
               700: '#4338ca',
@@ -36,55 +64,84 @@
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
-    /* Custom scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    
+    /* Smooth transitions for theme switches */
+    html.theme-transition,
+    html.theme-transition *,
+    html.theme-transition *:before,
+    html.theme-transition *:after {
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease !important;
+    }
+
+    /* Custom scrollbar - Dark Mode */
+    html.dark ::-webkit-scrollbar { width: 6px; height: 6px; }
+    html.dark ::-webkit-scrollbar-track { background: #090d16; }
+    html.dark ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    html.dark ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+    /* Custom scrollbar - Light Mode */
+    html:not(.dark) ::-webkit-scrollbar { width: 6px; height: 6px; }
+    html:not(.dark) ::-webkit-scrollbar-track { background: #f8fafc; }
+    html:not(.dark) ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    html:not(.dark) ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-200">
 
-  <!-- TOP NAVIGATION BAR -->
-  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <!-- TOP HEADER / NAV -->
+  <header class="border-b border-slate-200/80 bg-white/90 dark:border-slate-800/80 dark:bg-slate-900/80 backdrop-blur-lg sticky top-0 z-40 transition-colors duration-200 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
       
-      <!-- Brand & Status -->
-      <div class="flex items-center space-x-4">
-        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+      <!-- Brand & Engine Status -->
+      <div class="flex items-center space-x-3.5 min-w-0">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center shadow-md shadow-indigo-500/25 shrink-0">
           <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
         </div>
-        <div>
+        <div class="truncate">
           <div class="flex items-center space-x-2">
-            <span class="font-bold text-lg tracking-tight text-white">OutreachAgent</span>
-            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Gemini AI Active
+            <span class="font-bold text-lg tracking-tight text-slate-900 dark:text-white truncate">OutreachAgent</span>
+            <span class="hidden sm:inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 items-center gap-1.5 shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span> Multi-LLM Active
             </span>
           </div>
-          <p class="text-xs text-slate-400">Autonomous Prospecting & Email Outreach</p>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block truncate">Autonomous Intent Prospecting & Verification</p>
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div class="flex items-center space-x-3">
-        <div id="system-status-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-slate-500" id="status-dot"></span>
-          <span id="status-text">Idle</span>
+      <!-- Live Job Ticker (When running) -->
+      <div id="live-job-ticker" class="hidden items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 dark:bg-indigo-950/60 dark:border-indigo-800/80 dark:text-indigo-300 text-xs font-medium animate-pulse">
+        <span class="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+        <span id="live-ticker-text">Running DISCOVER...</span>
+        <span id="live-ticker-timer" class="font-mono text-[11px] font-bold">0s</span>
+      </div>
+
+      <!-- Controls & Actions -->
+      <div class="flex items-center space-x-2 shrink-0">
+        
+        <!-- Segmented Theme Pill Toggle -->
+        <div class="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80" title="Toggle Light / Dark Mode">
+          <button onclick="setMode('light')" id="btn-theme-light" class="p-1.5 rounded-lg text-xs font-semibold transition flex items-center justify-center cursor-pointer text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" aria-label="Light mode">
+            <i data-lucide="sun" class="w-4 h-4"></i>
+          </button>
+          <button onclick="setMode('dark')" id="btn-theme-dark" class="p-1.5 rounded-lg text-xs font-semibold transition flex items-center justify-center cursor-pointer text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" aria-label="Dark mode">
+            <i data-lucide="moon" class="w-4 h-4"></i>
+          </button>
         </div>
 
-        <button onclick="triggerAction('discover')" id="btn-discover" class="px-3.5 py-2 text-sm font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-2 shadow-sm">
-          <i data-lucide="search" class="w-4 h-4 text-indigo-400"></i>
-          <span>Find Leads</span>
+        <!-- Pipeline Action Buttons -->
+        <button onclick="triggerAction('discover')" id="btn-discover" class="px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 transition flex items-center gap-1.5 shadow-xs cursor-pointer">
+          <i data-lucide="search" class="w-4 h-4 text-indigo-500 dark:text-indigo-400"></i>
+          <span class="hidden md:inline">Find Leads</span>
         </button>
 
-        <button onclick="triggerAction('outreach')" id="btn-outreach" class="px-3.5 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center gap-2 shadow-lg shadow-indigo-600/25">
+        <button onclick="triggerAction('outreach')" id="btn-outreach" class="px-3 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20 cursor-pointer">
           <i data-lucide="mail" class="w-4 h-4"></i>
-          <span>Create Drafts</span>
+          <span class="hidden md:inline">Create Drafts</span>
         </button>
 
-        <button onclick="triggerAction('all')" id="btn-all" class="px-3.5 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white transition flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+        <button onclick="triggerAction('all')" id="btn-all" class="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-indigo-500 hover:opacity-95 text-white transition flex items-center gap-1.5 shadow-md shadow-indigo-500/25 cursor-pointer">
           <i data-lucide="play" class="w-4 h-4"></i>
-          <span>Full Auto Run</span>
+          <span class="hidden sm:inline">Full Auto Run</span>
         </button>
       </div>
 
@@ -92,268 +149,380 @@
   </header>
 
   <!-- MAIN CONTAINER -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 flex-1 w-full space-y-7">
 
-    <!-- KPI CARDS -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <!-- KPI SUMMARY CARDS (Clickable quick filters) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       
-      <!-- Total Leads -->
-      <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm hover:border-slate-700/80 transition">
+      <!-- Total Discovered -->
+      <div onclick="quickFilterLeads('all')" class="group bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer relative overflow-hidden">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Scanned</span>
-          <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Scanned</span>
+          <div class="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 group-hover:scale-105 transition-transform">
             <i data-lucide="users" class="w-5 h-5"></i>
           </div>
         </div>
-        <div class="mt-4 flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-white tracking-tight" id="kpi-total-leads">0</span>
-          <span class="text-xs text-slate-400">businesses discovered</span>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight" id="kpi-total-leads">0</span>
+          <span class="text-xs text-slate-500 dark:text-slate-400">businesses</span>
+        </div>
+        <div class="mt-2 text-[11px] text-indigo-600 dark:text-indigo-400 flex items-center gap-1 font-medium">
+          <span>View all in table</span> &rarr;
         </div>
       </div>
 
       <!-- AI Qualified -->
-      <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm hover:border-slate-700/80 transition">
+      <div onclick="quickFilterLeads('high_score')" class="group bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-emerald-400 dark:hover:border-emerald-500 transition cursor-pointer relative overflow-hidden">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">AI Qualified</span>
-          <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">AI Qualified</span>
+          <div class="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 group-hover:scale-105 transition-transform">
             <i data-lucide="check-circle-2" class="w-5 h-5"></i>
           </div>
         </div>
-        <div class="mt-4 flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-emerald-400 tracking-tight" id="kpi-ai-qualified">0</span>
-          <span class="text-xs text-slate-400">high-intent matches</span>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight" id="kpi-ai-qualified">0</span>
+          <span class="text-xs text-slate-500 dark:text-slate-400">high-intent leads</span>
+        </div>
+        <div class="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+          <span>Filter score &ge; 50</span> &rarr;
         </div>
       </div>
 
-      <!-- Decision Makers -->
-      <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm hover:border-slate-700/80 transition">
+      <!-- Verified Contacts -->
+      <div onclick="quickFilterLeads('with_contact')" class="group bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-amber-400 dark:hover:border-amber-500 transition cursor-pointer relative overflow-hidden">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Verified Contacts</span>
-          <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Verified Contacts</span>
+          <div class="p-2.5 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 group-hover:scale-105 transition-transform">
             <i data-lucide="shield-check" class="w-5 h-5"></i>
           </div>
         </div>
-        <div class="mt-4 flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-white tracking-tight" id="kpi-named-contacts">0</span>
-          <span class="text-xs text-slate-400" id="kpi-mx-valid">0 MX valid</span>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight" id="kpi-named-contacts">0</span>
+          <span class="text-xs font-medium text-amber-600 dark:text-amber-400" id="kpi-mx-valid">0 MX valid</span>
+        </div>
+        <div class="mt-2 text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium">
+          <span>Named decision-makers</span> &rarr;
         </div>
       </div>
 
-      <!-- Drafts & Sent -->
-      <div class="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm hover:border-slate-700/80 transition">
+      <!-- Gmail Drafts -->
+      <div onclick="quickFilterLeads('drafted')" class="group bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-purple-400 dark:hover:border-purple-500 transition cursor-pointer relative overflow-hidden">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Gmail Drafts</span>
-          <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Gmail Drafts</span>
+          <div class="p-2.5 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 group-hover:scale-105 transition-transform">
             <i data-lucide="send" class="w-5 h-5"></i>
           </div>
         </div>
-        <div class="mt-4 flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-purple-400 tracking-tight" id="kpi-drafted">0</span>
-          <span class="text-xs text-slate-400">ready to review</span>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span class="text-3xl font-extrabold text-purple-600 dark:text-purple-400 tracking-tight" id="kpi-drafted">0</span>
+          <span class="text-xs text-slate-500 dark:text-slate-400" id="kpi-cap-info">ready to review</span>
+        </div>
+        <div class="mt-2 text-[11px] text-purple-600 dark:text-purple-400 flex items-center gap-1 font-medium">
+          <span>Inspect drafted messages</span> &rarr;
         </div>
       </div>
 
     </div>
 
     <!-- NAVIGATION TABS -->
-    <div class="border-b border-slate-800 flex items-center justify-between">
-      <nav class="flex space-x-8">
-        <button onclick="switchTab('leads')" id="tab-btn-leads" class="border-b-2 border-indigo-500 py-3 px-1 text-sm font-semibold text-white flex items-center gap-2">
-          <i data-lucide="table" class="w-4 h-4 text-indigo-400"></i>
-          <span>Leads & Email Drafts</span>
+    <div class="border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+      <nav class="flex space-x-6 sm:space-x-8 overflow-x-auto">
+        <button onclick="switchTab('leads')" id="tab-btn-leads" class="border-b-2 border-indigo-500 py-3 px-1 text-sm font-semibold text-indigo-600 dark:text-white flex items-center gap-2 transition cursor-pointer shrink-0">
+          <i data-lucide="table" class="w-4 h-4 text-indigo-500 dark:text-indigo-400"></i>
+          <span>Leads & CRM</span>
         </button>
-        <button onclick="switchTab('logs')" id="tab-btn-logs" class="border-b-2 border-transparent py-3 px-1 text-sm font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <button onclick="switchTab('logs')" id="tab-btn-logs" class="border-b-2 border-transparent py-3 px-1 text-sm font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-2 transition cursor-pointer shrink-0">
           <i data-lucide="terminal" class="w-4 h-4"></i>
           <span>Live Activity</span>
         </button>
-        <button onclick="switchTab('reports')" id="tab-btn-reports" class="border-b-2 border-transparent py-3 px-1 text-sm font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <button onclick="switchTab('reports')" id="tab-btn-reports" class="border-b-2 border-transparent py-3 px-1 text-sm font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-2 transition cursor-pointer shrink-0">
           <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
           <span>Run Reports</span>
         </button>
-        <button onclick="switchTab('settings')" id="tab-btn-settings" class="border-b-2 border-transparent py-3 px-1 text-sm font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <button onclick="switchTab('settings')" id="tab-btn-settings" class="border-b-2 border-transparent py-3 px-1 text-sm font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-2 transition cursor-pointer shrink-0">
           <i data-lucide="settings" class="w-4 h-4"></i>
           <span>Offer & Settings</span>
         </button>
       </nav>
-      <div class="text-xs text-slate-400 flex items-center gap-1.5 pb-2">
-        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 cursor-pointer hover:text-white transition" onclick="refreshAll()"></i>
-        <span>Auto-syncs every 5s</span>
+
+      <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 pb-2 shrink-0">
+        <button onclick="refreshAll()" class="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer" title="Refresh all data">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+        </button>
+        <span class="hidden sm:inline font-mono text-[11px]">Synced</span>
       </div>
     </div>
 
     <!-- TAB 1: LEADS CRM TABLE -->
     <div id="tab-leads" class="space-y-4">
       
-      <!-- Filters and Search -->
-      <div class="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div class="relative w-full sm:w-80">
-          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-          <input type="text" id="leads-search" oninput="loadLeads()" placeholder="Search company, website, or email..." class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200 placeholder-slate-500">
+      <!-- Filters, Search & CSV Export Bar -->
+      <div class="flex flex-col md:flex-row gap-3 items-center justify-between bg-white dark:bg-slate-900/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        
+        <!-- Search Input with Clear Button -->
+        <div class="relative w-full md:w-80">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-2.5"></i>
+          <input type="text" id="leads-search" oninput="onSearchInput()" placeholder="Search company, website, or email..." class="w-full pl-10 pr-9 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 transition">
+          <button onclick="clearSearch()" id="btn-clear-search" class="hidden absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
         </div>
 
-        <div class="flex items-center space-x-2 w-full sm:w-auto">
-          <span class="text-xs text-slate-400 font-medium">Status:</span>
-          <select id="leads-filter-status" onchange="loadLeads()" class="bg-slate-900 border border-slate-800 text-slate-300 text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
-            <option value="all">All Leads</option>
-            <option value="drafted">Drafted in Gmail</option>
-            <option value="discovered">Discovered</option>
-            <option value="sent">Sent</option>
-          </select>
+        <!-- Filter Pills & Export -->
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Filter:</span>
+            <select id="leads-filter-status" onchange="onStatusFilterChange()" class="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 transition cursor-pointer">
+              <option value="all">All Statuses</option>
+              <option value="drafted">Drafted in Gmail</option>
+              <option value="discovered">Discovered</option>
+              <option value="sent">Sent</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+
+          <!-- Download CSV Button -->
+          <a id="btn-export-csv" href="/api/leads/export" download class="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-xs">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400"></i>
+            <span>Export CSV</span>
+          </a>
         </div>
       </div>
 
       <!-- Leads Table Container -->
-      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+      <div class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs transition">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
-            <thead class="bg-slate-900/90 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+            <thead class="bg-slate-50 dark:bg-slate-900/90 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th class="py-3.5 px-4 font-semibold">Company</th>
-                <th class="py-3.5 px-4 font-semibold">Contact Email</th>
-                <th class="py-3.5 px-4 font-semibold">Signal & Score</th>
-                <th class="py-3.5 px-4 font-semibold">Status</th>
-                <th class="py-3.5 px-4 font-semibold text-right">Action</th>
+                <th class="py-3.5 px-4 font-semibold">Company & Domain</th>
+                <th class="py-3.5 px-4 font-semibold">Contact Intelligence</th>
+                <th class="py-3.5 px-4 font-semibold">Signal & Fit Score</th>
+                <th class="py-3.5 px-4 font-semibold">Outreach Status</th>
+                <th class="py-3.5 px-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
-            <tbody id="leads-table-body" class="divide-y divide-slate-800/60 text-slate-300">
+            <tbody id="leads-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
               <tr>
-                <td colspan="5" class="py-12 text-center text-slate-500">
+                <td colspan="5" class="py-14 text-center text-slate-400 dark:text-slate-500">
                   <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 stroke-1"></i>
-                  <span>No leads in database yet. Click <strong>Find Leads</strong> above to start!</span>
+                  <span>No leads in database yet. Click <strong>Find Leads</strong> to start autonomous prospecting!</span>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination Controls -->
+        <div id="leads-pagination-bar" class="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-slate-50/80 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 gap-3">
+          <div id="leads-pagination-info">Showing 0 leads</div>
+          <div class="flex items-center space-x-2">
+            <button id="leads-btn-prev" onclick="changeLeadsPage(-1)" disabled class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 font-medium transition flex items-center gap-1 cursor-pointer">
+              <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> Previous
+            </button>
+            <span id="leads-page-indicator" class="px-2 font-mono text-slate-700 dark:text-slate-300">Page 1 of 1</span>
+            <button id="leads-btn-next" onclick="changeLeadsPage(1)" disabled class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 font-medium transition flex items-center gap-1 cursor-pointer">
+              Next <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
       </div>
 
     </div>
 
-    <!-- TAB 2: LIVE ACTIVITY / LOGS -->
+    <!-- TAB 2: LIVE ACTIVITY / LOGS CONSOLE -->
     <div id="tab-logs" class="hidden space-y-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div class="flex items-center space-x-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-            <span class="font-semibold text-sm text-slate-200">Autonomous Engine Console</span>
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3 shadow-xs transition">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3.5">
+          <div class="flex items-center space-x-2.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <div>
+              <span class="font-bold text-sm text-slate-900 dark:text-slate-100 block">Autonomous Engine Terminal</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">Live streamed discovery, web crawler & qualification logs</span>
+            </div>
           </div>
-          <span class="text-xs text-slate-400">Live background updates</span>
+          
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 cursor-pointer">
+              <input type="checkbox" id="chk-autoscroll" checked class="rounded text-indigo-600 focus:ring-0">
+              <span>Auto-scroll</span>
+            </label>
+            <button onclick="copyLogs()" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition flex items-center gap-1 cursor-pointer">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>Copy</span>
+            </button>
+            <button onclick="clearConsoleLogs()" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 transition flex items-center gap-1 cursor-pointer">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              <span>Clear</span>
+            </button>
+          </div>
         </div>
-        <div id="logs-console" class="mono text-xs text-slate-300 bg-slate-950 p-4 rounded-xl h-96 overflow-y-auto space-y-1 border border-slate-800/80 leading-relaxed">
-          <div class="text-slate-500">// Console ready. Awaiting next run...</div>
+
+        <div id="logs-console" class="mono text-xs text-slate-300 bg-slate-950 p-4 rounded-xl h-96 overflow-y-auto space-y-1.5 border border-slate-800/80 leading-relaxed shadow-inner">
+          <div class="text-slate-500">// Autonomous Engine Ready. Awaiting job trigger...</div>
         </div>
       </div>
     </div>
 
     <!-- TAB 3: RUN REPORTS -->
     <div id="tab-reports" class="hidden space-y-4">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-xs transition">
         <div>
-          <h2 class="text-lg font-bold text-white flex items-center gap-2">
-            <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-400"></i>
-            <span>Recent Execution Reports</span>
+          <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-500 dark:text-indigo-400"></i>
+            <span>Execution Audit Reports</span>
           </h2>
-          <p class="text-xs text-slate-400">Auditable funnel performance, search yield, and AI qualification history.</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Auditable funnel performance, search yield, and AI qualification history.</p>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="loadReports()" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+          <button onclick="loadReports()" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
             <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
             <span>Refresh</span>
           </button>
-          <button onclick="clearAllReports()" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center gap-1.5 cursor-pointer">
+          <button onclick="clearAllReports()" class="px-3 py-1.5 text-xs font-semibold rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30 transition flex items-center gap-1.5 cursor-pointer">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             <span>Clear All</span>
           </button>
         </div>
       </div>
       <div id="reports-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Report cards populated dynamically -->
-        <div class="col-span-2 py-10 text-center text-slate-500 bg-slate-900/40 rounded-2xl border border-slate-800">
-          No reports generated yet. Run discovery or outreach to view reports.
-        </div>
+        <!-- Populated dynamically -->
       </div>
     </div>
 
     <!-- TAB 4: OFFER & SETTINGS FORM -->
     <div id="tab-settings" class="hidden max-w-4xl space-y-6">
-      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-6">
-        <div>
-          <h2 class="text-lg font-bold text-white">Niche & Offer Setup</h2>
-          <p class="text-xs text-slate-400">Adjust what service you are selling and who the bot should target.</p>
+      <div class="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-6 shadow-xs transition">
+        
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Niche & Offer Setup</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Personalize value proposition, target industries, and volume caps.</p>
+          </div>
+          <button onclick="loadSettings()" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition flex items-center gap-1">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Discard Changes
+          </button>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Service / Offer Name</label>
-            <input type="text" id="cfg-offer-name" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Service / Offer Name</label>
+            <input type="text" id="cfg-offer-name" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition">
           </div>
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Sender Name</label>
-            <input type="text" id="cfg-sender-name" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Sender Name</label>
+            <input type="text" id="cfg-sender-name" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition">
           </div>
           <div class="col-span-full space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Service Description (What value you deliver)</label>
-            <textarea id="cfg-offer-desc" rows="2" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200"></textarea>
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Service Description (Value Delivered)</label>
+            <textarea id="cfg-offer-desc" rows="2" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition"></textarea>
           </div>
           <div class="col-span-full space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Call to Action (CTA)</label>
-            <input type="text" id="cfg-cta" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Call to Action (CTA)</label>
+            <input type="text" id="cfg-cta" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition">
           </div>
         </div>
 
-        <hr class="border-slate-800">
+        <hr class="border-slate-100 dark:border-slate-800">
 
         <div>
-          <h2 class="text-lg font-bold text-white">Targeting & Volume</h2>
-          <p class="text-xs text-slate-400">Define industries, daily caps, and sending behavior.</p>
+          <h2 class="text-lg font-bold text-slate-900 dark:text-white">Targeting & Volume</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Define search industries, geography, and sending pace.</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Target Industries (Comma-separated)</label>
-            <input type="text" id="cfg-industries" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Target Industries (Comma-separated)</label>
+            <input type="text" id="cfg-industries" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition">
           </div>
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Target Countries (Comma-separated)</label>
-            <input type="text" id="cfg-countries" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Target Countries (Comma-separated)</label>
+            <input type="text" id="cfg-countries" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition">
           </div>
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Daily Email Volume Cap</label>
-            <input type="number" id="cfg-daily-cap" min="1" max="150" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Target Cities / Local Areas (Optional)</label>
+            <input type="text" id="cfg-cities" placeholder="Miami, Dallas, London (or leave empty for all)" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition">
           </div>
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Mode</label>
-            <select id="cfg-send-mode" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Daily Email Volume Cap</label>
+            <input type="number" id="cfg-daily-cap" min="1" max="150" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition">
+          </div>
+          <div class="space-y-1.5 sm:col-span-2">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Dispatch Mode</label>
+            <select id="cfg-send-mode" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition cursor-pointer">
               <option value="draft">Draft in Gmail (Safe & Recommended)</option>
               <option value="send">Direct Send</option>
             </select>
           </div>
         </div>
 
-        <hr class="border-slate-800">
+        <hr class="border-slate-100 dark:border-slate-800">
 
         <div>
-          <h2 class="text-lg font-bold text-white">Safety & Blacklist</h2>
-          <p class="text-xs text-slate-400">Exclude unwanted niches or halt outreach instantly.</p>
+          <h2 class="text-lg font-bold text-slate-900 dark:text-white">Lead Discovery Sources</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Choose channels used to find prospective clients.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <label class="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-indigo-400/50 transition">
+            <div>
+              <span class="text-xs font-semibold text-slate-900 dark:text-slate-200 block">DuckDuckGo</span>
+              <span class="text-[11px] text-slate-500">Web signal searches</span>
+            </div>
+            <input type="checkbox" id="cfg-disc-ddg" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+          </label>
+          <label class="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-indigo-400/50 transition">
+            <div>
+              <span class="text-xs font-semibold text-slate-900 dark:text-slate-200 block">Meta Ad Library</span>
+              <span class="text-[11px] text-slate-500">Active FB / IG ads</span>
+            </div>
+            <input type="checkbox" id="cfg-disc-meta" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+          </label>
+          <label class="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-indigo-400/50 transition">
+            <div>
+              <span class="text-xs font-semibold text-slate-900 dark:text-slate-200 block">Social Radar</span>
+              <span class="text-[11px] text-slate-500">Reddit & Quora discussions</span>
+            </div>
+            <input type="checkbox" id="cfg-disc-social" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+          </label>
+          <label class="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl cursor-pointer hover:border-indigo-400/50 transition">
+            <div>
+              <span class="text-xs font-semibold text-slate-900 dark:text-slate-200 block">CSV File Import</span>
+              <span class="text-[11px] text-slate-500">Local leads list</span>
+            </div>
+            <input type="checkbox" id="cfg-disc-csv" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+          </label>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">CSV Import File Path</label>
+          <input type="text" id="cfg-disc-csv-path" placeholder="leads_input.csv" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition">
+        </div>
+
+        <hr class="border-slate-100 dark:border-slate-800">
+
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 dark:text-white">Safety & Blacklist Guardrails</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Exclude unwanted niches or instantly pause outreach engine.</p>
         </div>
 
         <div class="space-y-4">
           <div class="space-y-1.5">
-            <label class="text-xs font-semibold text-slate-300">Blacklisted Keywords (Comma-separated)</label>
-            <input type="text" id="cfg-blacklist" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Blacklisted Keywords (Comma-separated)</label>
+            <input type="text" id="cfg-blacklist" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-200 transition">
           </div>
 
-          <div class="flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-xl">
+          <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
             <div>
-              <span class="text-sm font-semibold text-rose-400 block">Emergency Kill Switch</span>
-              <span class="text-xs text-slate-400">Immediately freeze all email drafting and sending.</span>
+              <span class="text-sm font-semibold text-rose-500 dark:text-rose-400 block">Emergency Kill Switch</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">Immediately freeze all email drafting and sending.</span>
             </div>
             <input type="checkbox" id="cfg-emergency-stop" class="w-5 h-5 accent-rose-500 cursor-pointer">
           </div>
         </div>
 
-        <div class="pt-4 flex justify-end">
-          <button onclick="saveSettings()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl transition flex items-center gap-2 shadow-lg shadow-indigo-600/20">
+        <div class="pt-2 flex justify-end">
+          <button onclick="saveSettings()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl transition flex items-center gap-2 shadow-md shadow-indigo-600/25 cursor-pointer">
             <i data-lucide="save" class="w-4 h-4"></i>
             <span>Save Settings</span>
           </button>
@@ -363,118 +532,272 @@
 
   </main>
 
+  <!-- TOAST NOTIFICATIONS -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
   <!-- EMAIL MODAL INSPECTOR -->
-  <div id="email-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative">
-      <div class="flex items-start justify-between border-b border-slate-800 pb-4">
+  <div id="email-modal" class="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative transition">
+      
+      <div class="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
         <div>
-          <h3 id="modal-company" class="text-lg font-bold text-white">Company Name</h3>
-          <p id="modal-meta" class="text-xs text-slate-400">Target Email • Score</p>
+          <h3 id="modal-company" class="text-lg font-bold text-slate-900 dark:text-white">Company Name</h3>
+          <p id="modal-meta" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Target Email • Score</p>
         </div>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg transition cursor-pointer">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <div class="space-y-3">
+      <div class="space-y-4">
+        <!-- Subject Line -->
         <div>
-          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Subject Line</span>
-          <div id="modal-subject" class="mt-1 p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-sm font-medium text-slate-200"></div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subject Line</span>
+            <button onclick="copyModalField('modal-subject', 'Subject copied!')" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer">
+              <i data-lucide="copy" class="w-3 h-3"></i> Copy
+            </button>
+          </div>
+          <div id="modal-subject" class="mt-1 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 text-sm font-medium text-slate-900 dark:text-slate-200"></div>
         </div>
 
+        <!-- Body -->
         <div>
-          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Personalized Email Draft</span>
-          <div id="modal-body" class="mt-1 p-4 rounded-xl bg-slate-950 border border-slate-800/80 text-sm text-slate-300 whitespace-pre-line leading-relaxed font-sans max-h-60 overflow-y-auto"></div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Personalized Email Draft</span>
+            <div class="flex items-center gap-2">
+              <span id="modal-word-count" class="text-[11px] text-slate-400"></span>
+              <button onclick="copyModalField('modal-body', 'Draft body copied!')" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer">
+                <i data-lucide="copy" class="w-3 h-3"></i> Copy Body
+              </button>
+            </div>
+          </div>
+          <div id="modal-body" class="mt-1 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed font-sans max-h-60 overflow-y-auto"></div>
         </div>
 
-        <div id="modal-ai-box" class="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 space-y-1">
-          <div class="font-semibold flex items-center gap-1.5 text-indigo-200">
+        <!-- AI Qualification Box -->
+        <div id="modal-ai-box" class="p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-xs text-indigo-700 dark:text-indigo-300 space-y-1">
+          <div class="font-semibold flex items-center gap-1.5 text-indigo-800 dark:text-indigo-200">
             <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
             <span>AI Qualification Evidence</span>
           </div>
-          <p id="modal-ai-reason" class="text-slate-300"></p>
+          <p id="modal-ai-reason" class="text-slate-700 dark:text-slate-300"></p>
+        </div>
+
+        <!-- WhatsApp Staged Draft -->
+        <div id="modal-whatsapp-box" class="hidden p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300 space-y-2">
+          <div class="flex items-center justify-between font-semibold">
+            <span class="flex items-center gap-1.5"><i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i> WhatsApp Message Draft (Safe Staged)</span>
+            <a id="modal-whatsapp-link" href="#" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs flex items-center gap-1 transition">
+              Open in WhatsApp Web <i data-lucide="external-link" class="w-3 h-3"></i>
+            </a>
+          </div>
+          <div id="modal-whatsapp-body" class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-emerald-100 dark:border-emerald-900/40 font-mono text-xs whitespace-pre-line text-slate-800 dark:text-slate-200"></div>
         </div>
       </div>
 
-      <div class="flex justify-end pt-2">
-        <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold rounded-xl">Close</button>
+      <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+        <a href="https://mail.google.com/mail/u/0/#drafts" target="_blank" rel="noopener noreferrer" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+          <span>Open in Gmail Drafts</span> <i data-lucide="external-link" class="w-3 h-3"></i>
+        </a>
+        <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl transition cursor-pointer">Close</button>
       </div>
     </div>
   </div>
 
   <!-- REPORT MODAL INSPECTOR -->
-  <div id="report-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-      <div class="flex items-start justify-between border-b border-slate-800 pb-4">
+  <div id="report-modal" class="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto transition">
+      
+      <div class="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
         <div>
           <div class="flex items-center gap-2">
-            <h3 id="report-modal-title" class="text-lg font-bold text-white">Execution Report</h3>
+            <h3 id="report-modal-title" class="text-lg font-bold text-slate-900 dark:text-white">Execution Report</h3>
             <span id="report-modal-mode-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold uppercase"></span>
             <span id="report-modal-status-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold uppercase"></span>
           </div>
-          <p id="report-modal-meta" class="text-xs text-slate-400 mt-1">Timestamp • Duration • Channel</p>
+          <p id="report-modal-meta" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Timestamp • Duration • Channel</p>
         </div>
-        <button onclick="closeReportModal()" class="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer">
+        <button onclick="closeReportModal()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg transition cursor-pointer">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <!-- Funnel Metrics Table -->
+      <!-- Funnel Breakdown Grid -->
       <div class="space-y-2">
-        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Funnel Performance Breakdown</span>
+        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Funnel Performance Breakdown</span>
         <div id="report-modal-funnel" class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center text-xs"></div>
       </div>
 
-      <!-- Rejection Breakdown -->
+      <!-- Rejections -->
       <div id="report-modal-rejections-box" class="space-y-2 hidden">
-        <span class="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+        <span class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
           <i data-lucide="filter" class="w-3.5 h-3.5"></i>
           <span>AI Rejection Reasons</span>
         </span>
-        <div id="report-modal-rejections" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5 text-xs text-slate-300"></div>
+        <div id="report-modal-rejections" class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 text-xs text-slate-700 dark:text-slate-300"></div>
       </div>
 
-      <!-- Dispatches Failed -->
+      <!-- Failures -->
       <div id="report-modal-failures-box" class="space-y-2 hidden">
-        <span class="text-xs font-semibold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+        <span class="text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
           <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
           <span>Failed Outreach Dispatches</span>
         </span>
-        <div id="report-modal-failures" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5 text-xs text-rose-300"></div>
+        <div id="report-modal-failures" class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 text-xs text-rose-600 dark:text-rose-300"></div>
       </div>
 
-      <!-- Activity Notes & Logs -->
+      <!-- Notes -->
       <div id="report-modal-notes-box" class="space-y-2 hidden">
-        <span class="text-xs font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+        <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
           <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
           <span>Activity Notes & Details</span>
         </span>
-        <div id="report-modal-notes" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5 text-xs text-slate-300 max-h-48 overflow-y-auto"></div>
+        <div id="report-modal-notes" class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 text-xs text-slate-700 dark:text-slate-300 max-h-48 overflow-y-auto"></div>
       </div>
 
       <div class="flex justify-end pt-2">
-        <button onclick="closeReportModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold rounded-xl cursor-pointer">Close</button>
+        <button onclick="closeReportModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl transition cursor-pointer">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- JAVASCRIPT APP LOGIC -->
+  <!-- JAVASCRIPT LOGIC -->
   <script>
     let activeTab = 'leads';
     let cachedLeads = [];
+    let cachedReports = [];
+    let jobStartTime = null;
+    let jobTimerInterval = null;
+
+    // Pagination State
+    let leadsCurrentPage = 0;
+    const leadsPageSize = 50;
+    let leadsTotalCount = 0;
+    let searchDebounceTimer = null;
+
+    // --- THEME MANAGEMENT (PERSISTENT & FLICKER-FREE) ---
+    function getThemeCookie() {
+      try {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; theme=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+      } catch (e) {}
+      return null;
+    }
+
+    function initTheme() {
+      let savedTheme = null;
+      try { savedTheme = localStorage.getItem('theme'); } catch (e) {}
+      if (!savedTheme) savedTheme = getThemeCookie();
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        applyTheme(savedTheme, false, false);
+      } else {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        applyTheme(prefersDark ? 'dark' : 'light', false, false);
+      }
+    }
+
+    function setMode(theme) {
+      applyTheme(theme, true, true);
+    }
+
+    function applyTheme(theme, animate = true, persistToServer = true) {
+      const isDark = theme === 'dark';
+      const html = document.documentElement;
+
+      if (animate) {
+        html.classList.add('theme-transition');
+        setTimeout(() => html.classList.remove('theme-transition'), 300);
+      }
+
+      if (isDark) {
+        html.classList.add('dark');
+      } else {
+        html.classList.remove('dark');
+      }
+
+      // 1. Safe localStorage persistence
+      try { localStorage.setItem('theme', theme); } catch (e) {}
+
+      // 2. Safe cookie persistence (1-year max-age)
+      try { document.cookie = `theme=${theme}; path=/; max-age=31536000; SameSite=Lax`; } catch (e) {}
+
+      // 3. Backend persistence so it is never wiped out
+      if (persistToServer) {
+        try {
+          fetch('/api/theme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ theme: theme })
+          }).catch(() => {});
+        } catch (e) {}
+      }
+
+      updateThemeUI(theme);
+    }
+
+    function updateThemeUI(theme) {
+      const isDark = theme === 'dark';
+      const btnLight = document.getElementById('btn-theme-light');
+      const btnDark = document.getElementById('btn-theme-dark');
+
+      if (btnLight && btnDark) {
+        if (!isDark) {
+          btnLight.className = "p-1.5 rounded-lg text-xs font-semibold bg-white text-indigo-600 shadow-xs";
+          btnDark.className = "p-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900";
+        } else {
+          btnDark.className = "p-1.5 rounded-lg text-xs font-semibold bg-slate-700 text-amber-300 shadow-xs";
+          btnLight.className = "p-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white";
+        }
+      }
+
+      lucide.createIcons();
+    }
+
+    // HTML Sanitization
+    function escapeHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Modern Toast Notification
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      const bg = type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' :
+                 type === 'error' ? 'bg-rose-600 border-rose-500 text-white' :
+                 type === 'warning' ? 'bg-amber-600 border-amber-500 text-white' : 'bg-indigo-600 border-indigo-500 text-white';
+      toast.className = `${bg} text-xs font-semibold px-4 py-3 rounded-xl shadow-xl border flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto`;
+      toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+      setTimeout(() => {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
 
     function switchTab(tab) {
       activeTab = tab;
       ['leads', 'logs', 'reports', 'settings'].forEach(t => {
         document.getElementById(`tab-${t}`).classList.add('hidden');
         const btn = document.getElementById(`tab-btn-${t}`);
-        btn.classList.remove('border-indigo-500', 'text-white');
-        btn.classList.add('border-transparent', 'text-slate-400');
+        btn.classList.remove('border-indigo-500', 'text-indigo-600', 'dark:text-white');
+        btn.classList.add('border-transparent', 'text-slate-500', 'hover:text-slate-800', 'dark:text-slate-400', 'dark:hover:text-slate-200');
       });
       document.getElementById(`tab-${tab}`).classList.remove('hidden');
       const activeBtn = document.getElementById(`tab-btn-${tab}`);
-      activeBtn.classList.remove('border-transparent', 'text-slate-400');
-      activeBtn.classList.add('border-indigo-500', 'text-white');
+      activeBtn.classList.remove('border-transparent', 'text-slate-500', 'hover:text-slate-800', 'dark:text-slate-400', 'dark:hover:text-slate-200');
+      activeBtn.classList.add('border-indigo-500', 'text-indigo-600', 'dark:text-white');
 
       if (tab === 'leads') loadLeads();
       if (tab === 'reports') loadReports();
@@ -491,90 +814,271 @@
         document.getElementById('kpi-ai-qualified').textContent = data.ai_qualified_count || 0;
         document.getElementById('kpi-named-contacts').textContent = data.named_contacts_count || 0;
         document.getElementById('kpi-mx-valid').textContent = `${data.mx_valid_count || 0} MX valid`;
-        document.getElementById('kpi-drafted').textContent = (data.status_counts && data.status_counts['drafted']) || 0;
+        const draftedCount = (data.status_counts && data.status_counts['drafted']) || 0;
+        document.getElementById('kpi-drafted').textContent = draftedCount;
 
-        // System state badge
-        const dot = document.getElementById('status-dot');
-        const text = document.getElementById('status-text');
+        // Running ticker
+        const ticker = document.getElementById('live-job-ticker');
+        const tickerText = document.getElementById('live-ticker-text');
+        const tickerTimer = document.getElementById('live-ticker-timer');
+
         if (data.is_running) {
-          dot.className = "w-2 h-2 rounded-full bg-indigo-400 animate-ping";
-          text.textContent = `Running ${data.current_action.toUpperCase()}...`;
-          text.className = "text-indigo-300 font-semibold";
-        } else if (data.emergency_stop) {
-          dot.className = "w-2 h-2 rounded-full bg-rose-500";
-          text.textContent = "Emergency Stop Active";
-          text.className = "text-rose-400 font-semibold";
+          ticker.classList.remove('hidden');
+          ticker.classList.add('flex');
+          tickerText.textContent = `Running ${(data.current_action || '').toUpperCase()}...`;
+          if (data.started_at && !jobStartTime) {
+            jobStartTime = new Date(data.started_at).getTime();
+            if (jobTimerInterval) clearInterval(jobTimerInterval);
+            jobTimerInterval = setInterval(() => {
+              const sec = Math.max(0, Math.floor((Date.now() - jobStartTime) / 1000));
+              tickerTimer.textContent = `${sec}s`;
+            }, 1000);
+          }
         } else {
-          dot.className = "w-2 h-2 rounded-full bg-emerald-400";
-          text.textContent = "Ready";
-          text.className = "text-slate-300";
+          ticker.classList.add('hidden');
+          ticker.classList.remove('flex');
+          if (jobTimerInterval) {
+            clearInterval(jobTimerInterval);
+            jobTimerInterval = null;
+          }
+          jobStartTime = null;
         }
 
-        // Logs update
+        // Logs update with syntax highlighting
         if (data.recent_logs && data.recent_logs.length > 0) {
           const consoleEl = document.getElementById('logs-console');
-          consoleEl.innerHTML = data.recent_logs.map(l => `<div>${l}</div>`).join('');
-          consoleEl.scrollTop = consoleEl.scrollHeight;
+          consoleEl.innerHTML = data.recent_logs.map(l => formatLogLine(l)).join('');
+          const autoscroll = document.getElementById('chk-autoscroll');
+          if (!autoscroll || autoscroll.checked) {
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+          }
         }
       } catch (err) {
         console.error("Status fetch error", err);
       }
     }
 
-    async function loadLeads() {
-      const search = document.getElementById('leads-search').value;
+    function formatLogLine(log) {
+      let safe = escapeHtml(log);
+      if (safe.includes("ERROR") || safe.includes("failed") || safe.includes("Failed")) {
+        return `<div class="text-rose-400 font-medium">${safe}</div>`;
+      } else if (safe.includes("Starting") || safe.includes("DISCOVER")) {
+        return `<div class="text-sky-300">${safe}</div>`;
+      } else if (safe.includes("Qualified") || safe.includes("success") || safe.includes("Saved")) {
+        return `<div class="text-emerald-400">${safe}</div>`;
+      } else if (safe.includes("OUTREACH") || safe.includes("Draft")) {
+        return `<div class="text-purple-300">${safe}</div>`;
+      }
+      return `<div class="text-slate-300">${safe}</div>`;
+    }
+
+    function onSearchInput() {
+      const val = document.getElementById('leads-search').value.trim();
+      const clearBtn = document.getElementById('btn-clear-search');
+      if (clearBtn) {
+        if (val) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+      }
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        leadsCurrentPage = 0;
+        loadLeads();
+      }, 300);
+    }
+
+    function clearSearch() {
+      document.getElementById('leads-search').value = '';
+      const clearBtn = document.getElementById('btn-clear-search');
+      if (clearBtn) clearBtn.classList.add('hidden');
+      leadsCurrentPage = 0;
+      loadLeads();
+    }
+
+    function onStatusFilterChange() {
+      leadsCurrentPage = 0;
       const status = document.getElementById('leads-filter-status').value;
+      const exportBtn = document.getElementById('btn-export-csv');
+      if (exportBtn) {
+        exportBtn.href = status && status !== 'all' ? `/api/leads/export?status=${status}` : '/api/leads/export';
+      }
+      loadLeads();
+    }
+
+    function quickFilterLeads(type) {
+      switchTab('leads');
+      const select = document.getElementById('leads-filter-status');
+      if (type === 'all') {
+        select.value = 'all';
+      } else if (type === 'drafted') {
+        select.value = 'drafted';
+      } else if (type === 'high_score') {
+        select.value = 'all';
+        document.getElementById('leads-search').value = '';
+      } else if (type === 'with_contact') {
+        select.value = 'all';
+      }
+      onStatusFilterChange();
+    }
+
+    async function loadLeads() {
+      const search = (document.getElementById('leads-search').value || '').trim();
+      const status = document.getElementById('leads-filter-status').value;
+      const offset = leadsCurrentPage * leadsPageSize;
       try {
-        const res = await fetch(`/api/leads?status=${status}&search=${encodeURIComponent(search)}`);
+        const res = await fetch(`/api/leads?status=${status}&search=${encodeURIComponent(search)}&limit=${leadsPageSize}&offset=${offset}`);
         const data = await res.json();
         cachedLeads = data.leads || [];
+        leadsTotalCount = data.total || 0;
         renderLeads(cachedLeads);
+        renderPagination();
       } catch (err) {
         console.error("Error loading leads", err);
       }
     }
 
+    function changeLeadsPage(delta) {
+      const maxPage = Math.max(0, Math.ceil(leadsTotalCount / leadsPageSize) - 1);
+      const newPage = leadsCurrentPage + delta;
+      if (newPage >= 0 && newPage <= maxPage) {
+        leadsCurrentPage = newPage;
+        loadLeads();
+      }
+    }
+
+    function renderPagination() {
+      const total = leadsTotalCount;
+      const start = total === 0 ? 0 : leadsCurrentPage * leadsPageSize + 1;
+      const end = Math.min((leadsCurrentPage + 1) * leadsPageSize, total);
+      const totalPages = Math.max(1, Math.ceil(total / leadsPageSize));
+
+      const infoEl = document.getElementById('leads-pagination-info');
+      const indicatorEl = document.getElementById('leads-page-indicator');
+      const prevBtn = document.getElementById('leads-btn-prev');
+      const nextBtn = document.getElementById('leads-btn-next');
+
+      if (infoEl) infoEl.textContent = `Showing ${start}-${end} of ${total} leads`;
+      if (indicatorEl) indicatorEl.textContent = `Page ${leadsCurrentPage + 1} of ${totalPages}`;
+      if (prevBtn) prevBtn.disabled = leadsCurrentPage <= 0;
+      if (nextBtn) nextBtn.disabled = leadsCurrentPage >= totalPages - 1;
+    }
+
     function renderLeads(leads) {
       const tbody = document.getElementById('leads-table-body');
       if (!leads || leads.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-slate-500"><i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 stroke-1"></i>No matching leads found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="py-14 text-center text-slate-400 dark:text-slate-500"><i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 stroke-1"></i>No matching leads found.</td></tr>`;
         lucide.createIcons();
         return;
       }
 
       tbody.innerHTML = leads.map(l => {
         const statusBadge = l.status === 'drafted' 
-          ? '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">Draft in Gmail</span>'
+          ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> Drafted</span>'
           : l.status === 'sent'
-          ? '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Sent</span>'
-          : '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">Discovered</span>';
+          ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Sent</span>'
+          : '<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Discovered</span>';
+
+        const safeEmail = escapeHtml(l.email || '');
+        const safeName = escapeHtml(l.contact_name || '');
+        const safeTitle = escapeHtml(l.contact_title || '');
+        const safeCompany = escapeHtml(l.company || 'Unknown Business');
+        const safeWebsite = escapeHtml(l.website || '#');
+        const displayWebsite = escapeHtml((l.website || '').replace(/^https?:\/\//, '').replace(/\/$/, ''));
+        const safeSignal = escapeHtml((l.signal_name || '').replace(/_/g, ' '));
+
+        const initial = safeCompany.charAt(0).toUpperCase();
 
         const contactLabel = l.contact_name 
-          ? `<div><span class="font-medium text-slate-100">${l.contact_name}</span>${l.contact_title ? ` <span class="text-xs text-indigo-400">(${l.contact_title})</span>` : ''}</div><div class="text-xs text-emerald-400 font-mono">&lt;${l.email}&gt;</div>`
-          : `<span class="text-xs text-slate-400 font-mono">${l.email || 'No email found'}</span>`;
+          ? `<div>
+               <div class="font-medium text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                 <span>${safeName}</span>
+                 ${safeTitle ? `<span class="text-[11px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20">${safeTitle}</span>` : ''}
+               </div>
+               <div class="text-xs text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
+                 <span>&lt;${safeEmail}&gt;</span>
+                 <button onclick="copyToClipboard('${safeEmail}', 'Email copied!')" class="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" title="Copy Email">
+                   <i data-lucide="copy" class="w-3 h-3"></i>
+                 </button>
+               </div>
+             </div>`
+          : `<div class="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 font-mono">
+               <span>${safeEmail || 'No public email'}</span>
+               ${safeEmail ? `<button onclick="copyToClipboard('${safeEmail}', 'Email copied!')" class="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" title="Copy Email"><i data-lucide="copy" class="w-3 h-3"></i></button>` : ''}
+             </div>`;
 
-        const scoreBadge = l.score >= 50 
-          ? `<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${l.score}/100</span>`
-          : `<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-800 text-slate-400">${l.score}/100</span>`;
+        const scoreVal = parseInt(l.score) || 0;
+        const scoreBadge = scoreVal >= 70 
+          ? `<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">${scoreVal}/100</span>`
+          : scoreVal >= 50
+          ? `<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">${scoreVal}/100</span>`
+          : `<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-transparent">${scoreVal}/100</span>`;
+
+        const waBadge = l.whatsapp_number 
+          ? `<div class="mt-1"><a href="https://web.whatsapp.com/send?phone=${encodeURIComponent(l.whatsapp_number)}&text=${encodeURIComponent(l.whatsapp_draft || '')}" target="_blank" title="Open WhatsApp Draft" class="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition cursor-pointer">
+               <i data-lucide="message-square" class="w-3 h-3"></i> <span>+${escapeHtml(l.whatsapp_number)}</span>
+             </a></div>` 
+          : '';
+
+        const adBadge = l.ad_quality 
+          ? `<div class="mt-1"><span class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" title="${escapeHtml(l.ad_audit_notes || '')}">
+               ⚡ ${escapeHtml(l.ad_quality.replace(/_/g, ' '))}
+             </span></div>` 
+          : '';
 
         return `
-          <tr class="hover:bg-slate-900/80 transition">
-            <td class="py-3.5 px-4 font-medium text-white">
-              <div>${l.company}</div>
-              <a href="${l.website}" target="_blank" class="text-xs text-indigo-400 hover:underline flex items-center gap-1">${l.website.replace('https://', '')} <i data-lucide="external-link" class="w-3 h-3"></i></a>
+          <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-900/80 transition">
+            <!-- Company -->
+            <td class="py-3.5 px-4 font-medium text-slate-900 dark:text-white">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center font-bold text-xs text-slate-700 dark:text-slate-300 shrink-0 shadow-2xs">
+                  ${initial}
+                </div>
+                <div class="min-w-0">
+                  <div class="truncate font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>${safeCompany}</span>
+                    ${l.location ? `<span class="text-[10px] font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1 rounded">📍 ${escapeHtml(l.location)}</span>` : ''}
+                  </div>
+                  <a href="${safeWebsite}" target="_blank" rel="noopener noreferrer" class="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline flex items-center gap-1 truncate">
+                    ${displayWebsite} <i data-lucide="external-link" class="w-3 h-3 shrink-0"></i>
+                  </a>
+                </div>
+              </div>
             </td>
-            <td class="py-3.5 px-4">${contactLabel}</td>
+
+            <!-- Contact -->
+            <td class="py-3.5 px-4">
+              ${contactLabel}
+              ${waBadge}
+            </td>
+
+            <!-- Score & Signal -->
             <td class="py-3.5 px-4">
               <div class="flex items-center gap-2">
                 ${scoreBadge}
-                <span class="text-xs text-slate-400">${l.signal_name.replace('_', ' ')}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400 truncate">${safeSignal}</span>
               </div>
+              ${adBadge}
             </td>
+
+            <!-- Status -->
             <td class="py-3.5 px-4">${statusBadge}</td>
+
+            <!-- Actions -->
             <td class="py-3.5 px-4 text-right">
-              <button onclick="viewLead(${l.id})" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition">
-                Inspect Draft
-              </button>
+              <div class="flex items-center justify-end gap-1.5">
+                <!-- Thumbs Up / Down Feedback -->
+                <button onclick="rateLeadFeedback(${l.id}, 1)" title="Good Lead (AI will learn preference)" class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition cursor-pointer ${l.rating > 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/60 font-bold' : ''}">
+                  <i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="rateLeadFeedback(${l.id}, -1)" title="Bad Fit (AI will avoid similar)" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer ${l.rating < 0 ? 'text-rose-500 bg-rose-50 dark:bg-rose-950/60 font-bold' : ''}">
+                  <i data-lucide="thumbs-down" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="viewLead(${l.id})" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-indigo-300 dark:border-slate-700 transition cursor-pointer">
+                  Inspect
+                </button>
+                <button onclick="deleteSingleLead(${l.id}, '${safeCompany}')" title="Delete Lead" class="p-1 text-slate-400 hover:text-rose-500 rounded-lg transition cursor-pointer">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
             </td>
           </tr>
         `;
@@ -582,20 +1086,59 @@
       lucide.createIcons();
     }
 
+    async function rateLeadFeedback(id, rating) {
+      try {
+        const res = await fetch(`/api/leads/${id}/rate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rating: rating, feedback_note: rating > 0 ? 'Approved lead' : 'Rejected lead' })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          showToast(rating > 0 ? 'Rated 👍! AI learned to find more leads like this.' : 'Rated 👎! AI learned to avoid leads like this.', 'success');
+          loadLeads();
+        }
+      } catch (err) {
+        showToast("Feedback error: " + err, 'error');
+      }
+    }
+
     function viewLead(id) {
       const lead = cachedLeads.find(l => l.id === id);
       if (!lead) return;
 
-      document.getElementById('modal-company').textContent = lead.company;
-      document.getElementById('modal-meta').innerHTML = `<strong>Sending To:</strong> <span class="text-emerald-400 font-mono">${lead.email}</span> ${lead.contact_name ? `(${lead.contact_name} - ${lead.contact_title || 'Decision Maker'})` : ''} • Match Score: ${lead.score}/100`;
-      document.getElementById('modal-subject').textContent = lead.subject || `Quick question about ${lead.company}`;
-      document.getElementById('modal-body').textContent = lead.body || (lead.evidence_text ? `Evidence: ${lead.evidence_text}` : 'No personalized body generated yet.');
+      document.getElementById('modal-company').textContent = lead.company || 'Company';
+      const metaSpan = document.getElementById('modal-meta');
+      const locText = lead.location ? ` • 📍 ${escapeHtml(lead.location)}` : '';
+      metaSpan.innerHTML = `<strong>Sending To:</strong> <span class="text-emerald-600 dark:text-emerald-400 font-mono">${escapeHtml(lead.email || 'No email')}</span> ${lead.contact_name ? `(${escapeHtml(lead.contact_name)} - ${escapeHtml(lead.contact_title || 'Decision Maker')})` : ''} • Match Score: ${lead.score || 0}/100${locText}`;
+      
+      const subjectText = lead.subject || `Quick question about ${lead.company}`;
+      document.getElementById('modal-subject').textContent = subjectText;
+      
+      const bodyText = lead.body || (lead.evidence_text ? `Evidence: ${lead.evidence_text}` : 'No personalized body generated yet.');
+      document.getElementById('modal-body').textContent = bodyText;
+
+      const words = bodyText.split(/\s+/).filter(Boolean).length;
+      document.getElementById('modal-word-count').textContent = `${words} words • ~${Math.max(1, Math.round(words / 3))}s read`;
 
       if (lead.ai_reason) {
         document.getElementById('modal-ai-box').classList.remove('hidden');
         document.getElementById('modal-ai-reason').textContent = `${lead.ai_reason} (Confidence: ${lead.ai_confidence || 0}%)`;
       } else {
         document.getElementById('modal-ai-box').classList.add('hidden');
+      }
+
+      // WhatsApp Draft Staging
+      const waBox = document.getElementById('modal-whatsapp-box');
+      if (lead.whatsapp_draft || lead.whatsapp_number) {
+        waBox.classList.remove('hidden');
+        const draftContent = lead.whatsapp_draft || `Hi, saw your business ${lead.company} and had a quick question regarding your services.`;
+        document.getElementById('modal-whatsapp-body').textContent = draftContent;
+        const cleanWa = (lead.whatsapp_number || '').replace(/[^\d+]/g, '');
+        const waLink = `https://web.whatsapp.com/send?phone=${encodeURIComponent(cleanWa)}&text=${encodeURIComponent(draftContent)}`;
+        document.getElementById('modal-whatsapp-link').href = waLink;
+      } else {
+        waBox.classList.add('hidden');
       }
 
       document.getElementById('email-modal').classList.remove('hidden');
@@ -606,18 +1149,76 @@
       document.getElementById('email-modal').classList.add('hidden');
     }
 
-    async function triggerAction(action) {
+    async function deleteSingleLead(id, name) {
+      if (!confirm(`Are you sure you want to remove lead "${name}"?`)) return;
       try {
-        const res = await fetch(`/api/action/${action}`, { method: 'POST' });
+        const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
         const data = await res.json();
-        alert(data.message);
-        fetchStatus();
+        if (data.success) {
+          showToast(`Lead removed`, 'info');
+          loadLeads();
+          fetchStatus();
+        }
       } catch (err) {
-        alert("Action failed: " + err);
+        showToast("Delete failed: " + err, 'error');
       }
     }
 
-    let cachedReports = [];
+    function copyToClipboard(text, msg = 'Copied to clipboard!') {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(msg, 'success');
+      }).catch(() => {
+        showToast('Failed to copy', 'error');
+      });
+    }
+
+    function copyModalField(elementId, msg) {
+      const el = document.getElementById(elementId);
+      if (el) copyToClipboard(el.textContent, msg);
+    }
+
+    function copyLogs() {
+      const logsEl = document.getElementById('logs-console');
+      if (logsEl) copyToClipboard(logsEl.innerText, 'Console logs copied!');
+    }
+
+    async function clearConsoleLogs() {
+      try {
+        await fetch('/api/logs/clear', { method: 'POST' });
+        document.getElementById('logs-console').innerHTML = '<div class="text-slate-500">// Console logs cleared.</div>';
+        showToast("Console cleared", 'info');
+      } catch (err) {}
+    }
+
+    async function triggerAction(action) {
+      const btnMap = {
+        'discover': 'btn-discover',
+        'outreach': 'btn-outreach',
+        'all': 'btn-all'
+      };
+      const btn = document.getElementById(btnMap[action]);
+      const origText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-75');
+      }
+
+      try {
+        const res = await fetch(`/api/action/${action}`, { method: 'POST' });
+        const data = await res.json();
+        showToast(data.message, data.success ? 'success' : 'warning');
+        fetchStatus();
+      } catch (err) {
+        showToast("Action failed: " + err, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-75');
+          btn.innerHTML = origText;
+          lucide.createIcons();
+        }
+      }
+    }
 
     function formatReportTime(isoStr, runId) {
       if (isoStr) {
@@ -631,23 +1232,7 @@
           }
         } catch (e) {}
       }
-      if (runId && runId.length >= 15 && runId.includes('_')) {
-        try {
-          const parts = runId.split('_');
-          const y = parts[0].substring(0, 4);
-          const m = parts[0].substring(4, 6);
-          const d = parts[0].substring(6, 8);
-          const h = parts[1].substring(0, 2);
-          const min = parts[1].substring(2, 4);
-          const sec = parts[1].substring(4, 6);
-          const dt = new Date(Date.UTC(+y, +m - 1, +d, +h, +min, +sec));
-          return dt.toLocaleString(undefined, { 
-            month: 'short', day: 'numeric', year: 'numeric', 
-            hour: '2-digit', minute: '2-digit', second: '2-digit' 
-          });
-        } catch (e) {}
-      }
-      return runId || 'Unknown time';
+      return runId || 'Recent';
     }
 
     function formatDuration(started, finished) {
@@ -673,11 +1258,11 @@
         const container = document.getElementById('reports-list');
         if (!reports || reports.length === 0) {
           container.innerHTML = `
-            <div class="col-span-2 py-12 text-center text-slate-500 bg-slate-900/40 rounded-2xl border border-slate-800 space-y-3">
-              <i data-lucide="clipboard-list" class="w-10 h-10 mx-auto stroke-1 text-slate-600"></i>
-              <div class="text-sm font-medium text-slate-400">No execution reports recorded yet.</div>
-              <p class="text-xs text-slate-500">Run "Find Leads" or "Launch Outreach" to produce real-time audit reports.</p>
-              <button onclick="triggerAction('discover')" class="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition cursor-pointer">
+            <div class="col-span-2 py-14 text-center text-slate-500 bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
+              <i data-lucide="clipboard-list" class="w-10 h-10 mx-auto stroke-1 text-slate-400 dark:text-slate-600"></i>
+              <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">No execution reports recorded yet.</div>
+              <p class="text-xs text-slate-500">Run "Find Leads" or "Create Drafts" to produce auditable reports.</p>
+              <button onclick="triggerAction('discover')" class="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition cursor-pointer">
                 Run Discovery Now
               </button>
             </div>
@@ -692,16 +1277,16 @@
           const isFailed = d.status === 'failed';
           const isInProgress = d.status === 'in_progress' || (!d.finished_at && !isFailed);
           const statusBadge = isFailed
-            ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">Failed</span>'
+            ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">Failed</span>'
             : isInProgress
-            ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">In Progress...</span>'
-            : '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Completed</span>';
+            ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse">In Progress...</span>'
+            : '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Completed</span>';
           
           const modeBadge = mode === 'DISCOVER'
-            ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">Discover</span>'
+            ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">Discover</span>'
             : mode === 'OUTREACH'
-            ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">Outreach</span>'
-            : '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Full Run</span>';
+            ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">Outreach</span>'
+            : '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">Full Run</span>';
 
           const timeLabel = formatReportTime(d.started_at, d.run_id);
           const duration = formatDuration(d.started_at, d.finished_at);
@@ -709,53 +1294,56 @@
           const rejections = d.rejection_reasons || {};
           const topRejectionKey = Object.keys(rejections)[0];
           const rejectionPreview = topRejectionKey
-            ? `<div class="text-xs text-amber-300/80 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg truncate flex items-center gap-1.5"><i data-lucide="filter" class="w-3.5 h-3.5 shrink-0"></i> <span>Rejection: ${topRejectionKey} (${rejections[topRejectionKey]}x)</span></div>`
+            ? `<div class="text-xs text-amber-700 dark:text-amber-300/80 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2.5 py-1.5 rounded-lg truncate flex items-center gap-1.5"><i data-lucide="filter" class="w-3.5 h-3.5 shrink-0"></i> <span>Rejection: ${escapeHtml(topRejectionKey)} (${rejections[topRejectionKey]}x)</span></div>`
             : '';
 
+          const safeId = escapeHtml(r.id);
+          const safeRunId = escapeHtml(d.run_id || '');
+
           return `
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-lg hover:border-slate-700 transition">
-              <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-4 shadow-xs dark:shadow-lg hover:border-slate-300 dark:hover:border-slate-700 transition">
+              <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div class="flex items-center gap-2">
                   ${modeBadge}
                   ${statusBadge}
                 </div>
                 <div class="text-right">
-                  <div class="text-xs font-semibold text-slate-200">${timeLabel}</div>
-                  ${duration ? `<div class="text-[11px] text-slate-400">Duration: ${duration}</div>` : ''}
+                  <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">${escapeHtml(timeLabel)}</div>
+                  ${duration ? `<div class="text-[11px] text-slate-500 dark:text-slate-400">Duration: ${escapeHtml(duration)}</div>` : ''}
                 </div>
               </div>
 
               <div class="grid grid-cols-3 gap-2 text-center text-xs">
-                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80">
-                  <div class="text-slate-400 font-medium">Scanned</div>
-                  <div class="text-base font-bold text-white mt-1">${d.prospects_scanned || 0}</div>
+                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80">
+                  <div class="text-slate-500 dark:text-slate-400 font-medium">Scanned</div>
+                  <div class="text-base font-bold text-slate-900 dark:text-white mt-1">${d.prospects_scanned || 0}</div>
                 </div>
-                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80">
-                  <div class="text-slate-400 font-medium">Qualified</div>
-                  <div class="text-base font-bold text-emerald-400 mt-1">${d.ai_qualified || 0}</div>
+                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80">
+                  <div class="text-slate-500 dark:text-slate-400 font-medium">Qualified</div>
+                  <div class="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1">${d.ai_qualified || 0}</div>
                 </div>
-                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80">
-                  <div class="text-slate-400 font-medium">${mode === 'DISCOVER' ? 'Contacts' : 'Dispatched'}</div>
-                  <div class="text-base font-bold text-indigo-400 mt-1">${mode === 'DISCOVER' ? (d.contacts_found || 0) : (d.dispatched_success || 0)}</div>
+                <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80">
+                  <div class="text-slate-500 dark:text-slate-400 font-medium">${mode === 'DISCOVER' ? 'Contacts' : 'Dispatched'}</div>
+                  <div class="text-base font-bold text-indigo-600 dark:text-indigo-400 mt-1">${mode === 'DISCOVER' ? (d.contacts_found || 0) : (d.dispatched_success || 0)}</div>
                 </div>
               </div>
 
-              <div class="text-xs text-slate-400 grid grid-cols-3 gap-2 py-1 px-1 bg-slate-950/40 rounded-lg">
-                <div class="truncate">Researched: <span class="text-slate-200 font-semibold">${d.deep_researches_conducted || 0}</span></div>
-                <div class="truncate">Blacklisted: <span class="text-rose-400 font-semibold">${d.prospects_blacklisted || 0}</span></div>
-                <div class="truncate">AI Rejected: <span class="text-amber-400 font-semibold">${d.ai_rejected || 0}</span></div>
+              <div class="text-xs text-slate-600 dark:text-slate-400 grid grid-cols-3 gap-2 py-1 px-1 bg-slate-100/70 dark:bg-slate-950/40 rounded-lg">
+                <div class="truncate">Researched: <span class="text-slate-800 dark:text-slate-200 font-semibold">${d.deep_researches_conducted || 0}</span></div>
+                <div class="truncate">Blacklisted: <span class="text-rose-600 dark:text-rose-400 font-semibold">${d.prospects_blacklisted || 0}</span></div>
+                <div class="truncate">AI Rejected: <span class="text-amber-600 dark:text-amber-400 font-semibold">${d.ai_rejected || 0}</span></div>
               </div>
 
               ${rejectionPreview}
 
-              <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                <span class="text-xs text-slate-400 font-mono">ID: ${d.run_id}</span>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                <span class="text-xs text-slate-500 dark:text-slate-400 font-mono">ID: ${safeRunId}</span>
                 <div class="flex items-center gap-2">
-                  <button onclick="viewReport('${r.id}')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 transition flex items-center gap-1 cursor-pointer">
+                  <button onclick="viewReport('${safeId}')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 dark:bg-indigo-600/10 dark:hover:bg-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500/20 transition flex items-center gap-1 cursor-pointer">
                     <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-                    <span>View Full Report</span>
+                    <span>View Report</span>
                   </button>
-                  <button onclick="deleteSingleReport('${r.id}')" title="Delete Report" class="p-1.5 text-xs rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-slate-700 transition cursor-pointer">
+                  <button onclick="deleteSingleReport('${safeId}')" title="Delete Report" class="p-1.5 text-xs rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-200 dark:bg-slate-800 dark:hover:bg-rose-500/20 dark:text-slate-400 dark:hover:text-rose-400 dark:border-slate-700 transition cursor-pointer">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                   </button>
                 </div>
@@ -776,22 +1364,22 @@
       const mode = (d.mode || 'run').toUpperCase();
       const isFailed = d.status === 'failed';
 
-      document.getElementById('report-modal-title').textContent = `Execution Report (${d.run_id})`;
+      document.getElementById('report-modal-title').textContent = `Execution Report (${d.run_id || id})`;
 
       const modeBadge = document.getElementById('report-modal-mode-badge');
       modeBadge.textContent = mode;
       modeBadge.className = mode === 'DISCOVER'
-        ? 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20'
-        : 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20';
+        ? 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+        : 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20';
 
       const isInProgress = d.status === 'in_progress' || (!d.finished_at && !isFailed);
       const statusBadge = document.getElementById('report-modal-status-badge');
       statusBadge.textContent = isFailed ? 'FAILED' : isInProgress ? 'IN PROGRESS' : 'COMPLETED';
       statusBadge.className = isFailed
-        ? 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20'
+        ? 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
         : isInProgress
-        ? 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20'
-        : 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        ? 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse'
+        : 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
 
       const timeLabel = formatReportTime(d.started_at, d.run_id);
       const duration = formatDuration(d.started_at, d.finished_at);
@@ -800,19 +1388,19 @@
       // Funnel breakdown
       const funnel = document.getElementById('report-modal-funnel');
       const stats = [
-        { label: 'Prospects Scanned', val: d.prospects_scanned || 0, color: 'text-white' },
-        { label: 'Blacklisted / Filtered', val: d.prospects_blacklisted || 0, color: 'text-rose-400' },
-        { label: 'Deep Researched', val: d.deep_researches_conducted || 0, color: 'text-sky-400' },
-        { label: 'Contacts Found', val: d.contacts_found || 0, color: 'text-indigo-400' },
-        { label: 'AI Qualified', val: d.ai_qualified || 0, color: 'text-emerald-400' },
-        { label: 'AI Rejected', val: d.ai_rejected || 0, color: 'text-amber-400' },
-        { label: 'Emails Personalized', val: d.emails_personalized || 0, color: 'text-purple-400' },
-        { label: 'Dispatched Success', val: d.dispatched_success || 0, color: 'text-emerald-400' },
-        { label: 'Dispatched Failed', val: d.dispatched_failed || 0, color: 'text-rose-400' },
+        { label: 'Prospects Scanned', val: d.prospects_scanned || 0, color: 'text-slate-900 dark:text-white' },
+        { label: 'Blacklisted / Filtered', val: d.prospects_blacklisted || 0, color: 'text-rose-600 dark:text-rose-400' },
+        { label: 'Deep Researched', val: d.deep_researches_conducted || 0, color: 'text-sky-600 dark:text-sky-400' },
+        { label: 'Contacts Found', val: d.contacts_found || 0, color: 'text-indigo-600 dark:text-indigo-400' },
+        { label: 'AI Qualified', val: d.ai_qualified || 0, color: 'text-emerald-600 dark:text-emerald-400' },
+        { label: 'AI Rejected', val: d.ai_rejected || 0, color: 'text-amber-600 dark:text-amber-400' },
+        { label: 'Emails Personalized', val: d.emails_personalized || 0, color: 'text-purple-600 dark:text-purple-400' },
+        { label: 'Dispatched Success', val: d.dispatched_success || 0, color: 'text-emerald-600 dark:text-emerald-400' },
+        { label: 'Dispatched Failed', val: d.dispatched_failed || 0, color: 'text-rose-600 dark:text-rose-400' },
       ];
       funnel.innerHTML = stats.map(s => `
-        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-          <div class="text-[11px] text-slate-400">${s.label}</div>
+        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+          <div class="text-[11px] text-slate-500 dark:text-slate-400">${escapeHtml(s.label)}</div>
           <div class="text-base font-bold ${s.color} mt-0.5">${s.val}</div>
         </div>
       `).join('');
@@ -825,9 +1413,9 @@
       if (rejKeys.length > 0) {
         rejBox.classList.remove('hidden');
         rejEl.innerHTML = rejKeys.map(k => `
-          <div class="flex items-start justify-between gap-2 border-b border-slate-800/60 pb-1.5 last:border-0 last:pb-0">
-            <span class="text-slate-300">${k}</span>
-            <span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20 shrink-0">${rejections[k]}x</span>
+          <div class="flex items-start justify-between gap-2 border-b border-slate-200 dark:border-slate-800/60 pb-1.5 last:border-0 last:pb-0">
+            <span class="text-slate-700 dark:text-slate-300">${escapeHtml(k)}</span>
+            <span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 shrink-0">${rejections[k]}x</span>
           </div>
         `).join('');
       } else {
@@ -841,8 +1429,8 @@
       if (failures.length > 0) {
         failBox.classList.remove('hidden');
         failEl.innerHTML = failures.map(f => `
-          <div class="border-b border-slate-800/60 pb-1.5 last:border-0 last:pb-0">
-            <span class="font-semibold text-rose-300">${f.company || 'Unknown'}</span> (${f.target || '-'}): <span class="text-slate-300">${f.error || 'Failed'}</span>
+          <div class="border-b border-slate-200 dark:border-slate-800/60 pb-1.5 last:border-0 last:pb-0">
+            <span class="font-semibold text-rose-600 dark:text-rose-300">${escapeHtml(f.company || 'Unknown')}</span> (${escapeHtml(f.target || '-')}): <span class="text-slate-700 dark:text-slate-300">${escapeHtml(f.error || 'Failed')}</span>
           </div>
         `).join('');
       } else {
@@ -855,7 +1443,7 @@
       const notes = d.notes || [];
       if (notes.length > 0) {
         notesBox.classList.remove('hidden');
-        notesEl.innerHTML = notes.map(n => `<div>• ${n}</div>`).join('');
+        notesEl.innerHTML = notes.map(n => `<div>• ${escapeHtml(n)}</div>`).join('');
       } else {
         notesBox.classList.add('hidden');
       }
@@ -874,12 +1462,13 @@
         const res = await fetch(`/api/reports/${id}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
+          showToast(`Report ${id} deleted`, 'info');
           loadReports();
         } else {
-          alert("Error: " + data.message);
+          showToast("Error: " + data.message, 'error');
         }
       } catch (err) {
-        alert("Delete failed: " + err);
+        showToast("Delete failed: " + err, 'error');
       }
     }
 
@@ -889,12 +1478,13 @@
         const res = await fetch('/api/reports', { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
+          showToast("All execution reports cleared", 'info');
           loadReports();
         } else {
-          alert("Error: " + data.message);
+          showToast("Error: " + data.message, 'error');
         }
       } catch (err) {
-        alert("Clear failed: " + err);
+        showToast("Clear failed: " + err, 'error');
       }
     }
 
@@ -910,8 +1500,16 @@
 
         document.getElementById('cfg-industries').value = (cfg.target?.industries || []).join(', ');
         document.getElementById('cfg-countries').value = (cfg.target?.countries || []).join(', ');
+        document.getElementById('cfg-cities').value = (cfg.target?.cities || []).join(', ');
         document.getElementById('cfg-daily-cap').value = cfg.outreach?.daily_cap || 25;
         document.getElementById('cfg-send-mode').value = cfg.outreach?.send_mode || 'draft';
+
+        const discSources = cfg.discovery?.sources || {};
+        document.getElementById('cfg-disc-ddg').checked = discSources.duckduckgo !== false;
+        document.getElementById('cfg-disc-meta').checked = discSources.meta_ads !== false;
+        document.getElementById('cfg-disc-social').checked = Boolean(discSources.social_radar);
+        document.getElementById('cfg-disc-csv').checked = Boolean(discSources.csv_import);
+        document.getElementById('cfg-disc-csv-path').value = cfg.discovery?.csv_path || 'leads_input.csv';
 
         document.getElementById('cfg-blacklist').value = (cfg.filters?.blacklist_keywords || []).join(', ');
         document.getElementById('cfg-emergency-stop').checked = Boolean(cfg.filters?.emergency_stop);
@@ -928,8 +1526,14 @@
         cta: document.getElementById('cfg-cta').value,
         target_industries: document.getElementById('cfg-industries').value.split(',').map(s => s.trim()).filter(Boolean),
         target_countries: document.getElementById('cfg-countries').value.split(',').map(s => s.trim()).filter(Boolean),
+        target_cities: document.getElementById('cfg-cities').value.split(',').map(s => s.trim()).filter(Boolean),
         daily_cap: parseInt(document.getElementById('cfg-daily-cap').value) || 25,
         send_mode: document.getElementById('cfg-send-mode').value,
+        discovery_ddg: document.getElementById('cfg-disc-ddg').checked,
+        discovery_meta_ads: document.getElementById('cfg-disc-meta').checked,
+        discovery_social_radar: document.getElementById('cfg-disc-social').checked,
+        discovery_csv_import: document.getElementById('cfg-disc-csv').checked,
+        discovery_csv_path: document.getElementById('cfg-disc-csv-path').value || 'leads_input.csv',
         blacklist_keywords: document.getElementById('cfg-blacklist').value.split(',').map(s => s.trim()).filter(Boolean),
         emergency_stop: document.getElementById('cfg-emergency-stop').checked,
       };
@@ -941,10 +1545,10 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        alert("Settings saved successfully!");
+        showToast("Settings saved successfully!", 'success');
         fetchStatus();
       } catch (err) {
-        alert("Failed to save settings: " + err);
+        showToast("Failed to save settings: " + err, 'error');
       }
     }
 
@@ -954,12 +1558,36 @@
       if (activeTab === 'reports') loadReports();
     }
 
-    // Auto-refresh timer
+    // Modal Close Event Listeners (Backdrop click and Escape key)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        closeReportModal();
+      }
+    });
+
+    const emailModalEl = document.getElementById('email-modal');
+    if (emailModalEl) {
+      emailModalEl.addEventListener('click', (e) => {
+        if (e.target.id === 'email-modal') closeModal();
+      });
+    }
+
+    const reportModalEl = document.getElementById('report-modal');
+    if (reportModalEl) {
+      reportModalEl.addEventListener('click', (e) => {
+        if (e.target.id === 'report-modal') closeReportModal();
+      });
+    }
+
+    // Auto-refresh timer (every 4s)
     setInterval(fetchStatus, 4000);
 
     // Initial load
+    initTheme();
     fetchStatus();
     loadLeads();
+    loadSettings();
     lucide.createIcons();
   </script>
 </body>

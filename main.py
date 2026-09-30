@@ -36,6 +36,8 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+import meta_agent
+import social_radar
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "leads.db"
@@ -68,6 +70,11 @@ class Candidate:
     evidence_text: str
     email: str | None = None
     score: int = 0
+    location: str = ""
+    whatsapp_number: str = ""
+    whatsapp_draft: str = ""
+    ad_quality: str = ""
+    ad_audit_notes: str = ""
 
 
 def now_iso() -> str:
@@ -76,8 +83,14 @@ def now_iso() -> str:
 
 def load_config() -> dict:
     if not CONFIG_PATH.exists():
-        raise SystemExit("Missing config.yaml. Copy config.example.yaml to config.yaml and edit it first.")
-    return yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
+        example_path = ROOT / "config.example.yaml"
+        if example_path.exists():
+            import shutil
+            shutil.copy(example_path, CONFIG_PATH)
+        else:
+            raise FileNotFoundError(f"Missing config file at {CONFIG_PATH} and no config.example.yaml found.")
+    content = CONFIG_PATH.read_text(encoding="utf-8")
+    return yaml.safe_load(content) or {}
 
 
 def init_db() -> sqlite3.Connection:
@@ -99,6 +112,25 @@ def init_db() -> sqlite3.Connection:
             subject TEXT,
             body TEXT,
             gmail_message_id TEXT,
+            research_text TEXT,
+            pain_summary TEXT,
+            ai_reason TEXT,
+            ai_confidence INTEGER DEFAULT 0,
+            ai_evidence_quote TEXT,
+            contact_name TEXT,
+            contact_title TEXT,
+            contact_source_url TEXT,
+            contact_source_text TEXT,
+            contact_confidence INTEGER DEFAULT 0,
+            contact_direct_match INTEGER DEFAULT 0,
+            email_mx_valid INTEGER DEFAULT 0,
+            rating INTEGER DEFAULT 0,
+            feedback_note TEXT,
+            location TEXT,
+            whatsapp_number TEXT,
+            whatsapp_draft TEXT,
+            ad_quality TEXT,
+            ad_audit_notes TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
@@ -110,6 +142,32 @@ def init_db() -> sqlite3.Connection:
             created_at TEXT NOT NULL
         )
     """)
+    # Migration safeguard for existing databases missing extra columns
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(leads)").fetchall()}
+    extra_cols = {
+        "research_text": "TEXT",
+        "pain_summary": "TEXT",
+        "ai_reason": "TEXT",
+        "ai_confidence": "INTEGER DEFAULT 0",
+        "ai_evidence_quote": "TEXT",
+        "contact_name": "TEXT",
+        "contact_title": "TEXT",
+        "contact_source_url": "TEXT",
+        "contact_source_text": "TEXT",
+        "contact_confidence": "INTEGER DEFAULT 0",
+        "contact_direct_match": "INTEGER DEFAULT 0",
+        "email_mx_valid": "INTEGER DEFAULT 0",
+        "rating": "INTEGER DEFAULT 0",
+        "feedback_note": "TEXT",
+        "location": "TEXT",
+        "whatsapp_number": "TEXT",
+        "whatsapp_draft": "TEXT",
+        "ad_quality": "TEXT",
+        "ad_audit_notes": "TEXT",
+    }
+    for col_name, col_type in extra_cols.items():
+        if col_name not in existing:
+            conn.execute(f"ALTER TABLE leads ADD COLUMN {col_name} {col_type}")
     conn.commit()
     return conn
 
@@ -254,94 +312,191 @@ def extract_brands_from_listicle(url: str, html: str, skip_hosts: set[str], max_
 
 
 def search_candidates(config: dict, reporter=None) -> list[Candidate]:
+    discovery = config.get("discovery", {})
+    sources = discovery.get("sources", {})
+    # DuckDuckGo is enabled by default unless explicitly disabled
+    use_ddg = sources.get("duckduckgo", True)
+    use_meta = sources.get("meta_ads", True)
+    use_csv = sources.get("csv_import", False)
+    use_social = sources.get("social_radar", False) or sources.get("reddit_quora", False)
+
     target = config.get("target", {})
     filters = config.get("filters", {})
     excluded_industries = {i.lower() for i in filters.get("excluded_industries", [])}
     max_results = int(target.get("max_search_results_per_query", 10))
     countries = target.get("countries", [""])
+    cities = target.get("cities", [""])
+    if not cities:
+        cities = [""]
     industries = [ind for ind in target.get("industries", []) if ind.lower() not in excluded_industries]
     signals = config.get("signals", [])
     found: list[Candidate] = []
     seen_websites: set[str] = set()
 
-    for industry in industries:
-        for signal in signals:
-            for pattern in signal.get("query_patterns", []):
-                queries_to_run = [pattern.format(industry=industry, country=c) for c in countries] if "{country}" in pattern else [pattern.format(industry=industry, country="")]
-                for q in queries_to_run:
-                    print(f"[search] Searching: {q}")
-                    results = fetch_ddg_results(q, max_results=max_results)
-                    for r in results:
-                        url = normalize_url(r.get("href") or "")
-                        if not url:
-                            continue
-                        host = urlparse(url).netloc.lower().removeprefix("www.")
-                        if host in SKIP_HOSTS or any(sh in host for sh in SKIP_HOSTS):
-                            continue
+    # 1. Direct CSV list import
+    if use_csv:
+        csv_path = discovery.get("csv_path", "leads_input.csv")
+        csv_leads = meta_agent.import_csv_leads(csv_path)
+        for c in csv_leads:
+            if not c.website and c.company:
+                c.website = meta_agent.resolve_company_website(c.company)
+            if c.website:
+                site_root = root_url(c.website)
+                if site_root in seen_websites:
+                    continue
+                is_blocked, reason = check_blacklist(c.company, c.website, c.evidence_text, config)
+                if is_blocked:
+                    if reporter:
+                        reporter.log_blacklist(c.company, reason)
+                    continue
+                seen_websites.add(site_root)
+                if reporter:
+                    reporter.log_scan(1)
+                found.append(c)
+                print(f"[csv-candidate] {c.company}: {site_root} ({c.signal_name})", flush=True)
+            elif c.email:
+                dedup_key = f"email:{c.email.lower()}"
+                if dedup_key in seen_websites:
+                    continue
+                is_blocked, reason = check_blacklist(c.company, "", c.evidence_text, config)
+                if is_blocked:
+                    if reporter:
+                        reporter.log_blacklist(c.company, reason)
+                    continue
+                seen_websites.add(dedup_key)
+                if reporter:
+                    reporter.log_scan(1)
+                found.append(c)
+                print(f"[csv-candidate] {c.company}: {c.email} ({c.signal_name})", flush=True)
 
-                        company = company_from_result(r.get("title", ""), url)
-                        body_text = (r.get("snippet") or "")[:1000]
+    # 2. Meta Ads Library & Facebook Pages
+    if use_meta:
+        meta_candidates = meta_agent.search_meta_candidates(config)
+        for c in meta_candidates:
+            if not c.website and c.company:
+                c.website = meta_agent.resolve_company_website(c.company)
+            if c.website:
+                site_root = root_url(c.website)
+                if site_root in seen_websites:
+                    continue
+                is_blocked, reason = check_blacklist(c.company, c.website, c.evidence_text, config)
+                if is_blocked:
+                    if reporter:
+                        reporter.log_blacklist(c.company, reason)
+                    continue
+                seen_websites.add(site_root)
+                if reporter:
+                    reporter.log_scan(1)
+                found.append(c)
+                print(f"[meta-candidate] {c.company}: {site_root} ({c.signal_name})", flush=True)
 
-                        # Check if this result is a listicle or directory article
-                        is_listicle = any(w in url.lower() for w in ["/blog/", "/article/", "/top-", "/best-", "brands-in"]) or \
-                                      any(w in r.get("title", "").lower() for w in ["top 10", "top 20", "top 50", "best d2c", "brands you"])
-
-                        if is_listicle:
-                            try:
-                                with httpx.Client(timeout=4.0, headers={"User-Agent": "Mozilla/5.0"}) as client:
-                                    art_html = fetch_html(client, url)
-                                    if art_html:
-                                        brand_links = extract_brands_from_listicle(url, art_html, SKIP_HOSTS)
-                                        for b_name, b_url in brand_links:
-                                            b_root = root_url(b_url)
-                                            if b_root in seen_websites:
-                                                continue
-                                            is_blocked, _ = check_blacklist(b_name, b_url, "", config)
-                                            if is_blocked:
-                                                continue
-                                            seen_websites.add(b_root)
-                                            if reporter:
-                                                reporter.log_scan(1)
-                                            clean_b_name = b_name.encode("ascii", "ignore").decode("ascii")
-                                            print(f"[brand-from-listicle] {clean_b_name}: {b_root}", flush=True)
-                                            found.append(Candidate(
-                                                company=b_name,
-                                                website=b_root,
-                                                signal_name="curated_d2c_listicle",
-                                                signal_score=50,
-                                                evidence_url=url,
-                                                evidence_text=f"Featured in curated list of top D2C brands: {r.get('title', '')}",
-                                            ))
-                            except Exception as exc:
-                                print(f"[listicle-extract-error] {url}: {exc}", flush=True)
-                            continue
-
-                        # Direct brand candidate
-                        site_root = root_url(url)
+    # 3. Social Discussion / Comment Radar (Reddit, Quora, Forums)
+    if use_social:
+        for ind in industries:
+            for city in cities:
+                social_leads = social_radar.search_discussions(ind, city=city, max_results=5)
+                for c in social_leads:
+                    if not c.website and c.company:
+                        c.website = meta_agent.resolve_company_website(c.company)
+                    if c.website:
+                        site_root = root_url(c.website)
                         if site_root in seen_websites:
                             continue
-
-                        is_blocked, reason = check_blacklist(company, url, body_text, config)
+                        is_blocked, reason = check_blacklist(c.company, c.website, c.evidence_text, config)
                         if is_blocked:
-                            if reporter:
-                                reporter.log_blacklist(company, reason)
                             continue
-
                         seen_websites.add(site_root)
                         if reporter:
                             reporter.log_scan(1)
-                        clean_comp = company.encode("ascii", "ignore").decode("ascii")
-                        print(f"[direct-brand] {clean_comp}: {site_root}", flush=True)
+                        found.append(c)
+                        print(f"[social-candidate] {c.company}: {site_root} ({c.signal_name})", flush=True)
 
-                        found.append(Candidate(
-                            company=company,
-                            website=site_root,
-                            signal_name=signal["name"],
-                            signal_score=int(signal.get("score", 0)),
-                            evidence_url=url,
-                            evidence_text=body_text,
-                        ))
-                    time.sleep(0.2)
+    # 4. DuckDuckGo Search (optional)
+    if use_ddg:
+        for industry in industries:
+            for city in cities:
+                for signal in signals:
+                    for pattern in signal.get("query_patterns", []):
+                        queries_to_run = []
+                        for c in countries:
+                            q = pattern.format(industry=industry, country=c)
+                            if city:
+                                q = f"{q} {city}"
+                            queries_to_run.append(q.strip())
+                        for q in queries_to_run:
+                            print(f"[search] Searching: {q}")
+                            results = fetch_ddg_results(q, max_results=max_results)
+                            for r in results:
+                                url = normalize_url(r.get("href") or "")
+                                if not url:
+                                    continue
+                                host = urlparse(url).netloc.lower().removeprefix("www.")
+                                if host in SKIP_HOSTS or any(sh in host for sh in SKIP_HOSTS):
+                                    continue
+
+                                company = company_from_result(r.get("title", ""), url)
+                                body_text = (r.get("snippet") or "")[:1000]
+
+                            # Check if this result is a listicle or directory article
+                            is_listicle = any(w in url.lower() for w in ["/blog/", "/article/", "/top-", "/best-", "brands-in"]) or \
+                                          any(w in r.get("title", "").lower() for w in ["top 10", "top 20", "top 50", "best d2c", "brands you"])
+
+                            if is_listicle:
+                                try:
+                                    with httpx.Client(timeout=4.0, headers={"User-Agent": "Mozilla/5.0"}) as client:
+                                        art_html = fetch_html(client, url)
+                                        if art_html:
+                                            brand_links = extract_brands_from_listicle(url, art_html, SKIP_HOSTS)
+                                            for b_name, b_url in brand_links:
+                                                b_root = root_url(b_url)
+                                                if b_root in seen_websites:
+                                                    continue
+                                                is_blocked, _ = check_blacklist(b_name, b_url, "", config)
+                                                if is_blocked:
+                                                    continue
+                                                seen_websites.add(b_root)
+                                                if reporter:
+                                                    reporter.log_scan(1)
+                                                clean_b_name = b_name.encode("ascii", "ignore").decode("ascii")
+                                                print(f"[brand-from-listicle] {clean_b_name}: {b_root}", flush=True)
+                                                found.append(Candidate(
+                                                    company=b_name,
+                                                    website=b_root,
+                                                    signal_name="curated_d2c_listicle",
+                                                    signal_score=50,
+                                                    evidence_url=url,
+                                                    evidence_text=f"Featured in curated list of top D2C brands: {r.get('title', '')}",
+                                                ))
+                                except Exception as exc:
+                                    print(f"[listicle-extract-error] {url}: {exc}", flush=True)
+                                continue
+
+                            # Direct brand candidate
+                            site_root = root_url(url)
+                            if site_root in seen_websites:
+                                continue
+
+                            is_blocked, reason = check_blacklist(company, url, body_text, config)
+                            if is_blocked:
+                                if reporter:
+                                    reporter.log_blacklist(company, reason)
+                                continue
+
+                            seen_websites.add(site_root)
+                            if reporter:
+                                reporter.log_scan(1)
+                            clean_comp = company.encode("ascii", "ignore").decode("ascii")
+                            print(f"[direct-brand] {clean_comp}: {site_root}", flush=True)
+
+                            found.append(Candidate(
+                                company=company,
+                                website=site_root,
+                                signal_name=signal["name"],
+                                signal_score=int(signal.get("score", 0)),
+                                evidence_url=url,
+                                evidence_text=body_text,
+                            ))
+                        time.sleep(0.2)
     return found
 
 
@@ -395,7 +550,8 @@ def research_candidate(candidate: Candidate, config: dict) -> Candidate:
             text = " ".join(soup.stripped_strings)
             texts.append(text[:12000])
 
-    candidate.email = emails[0] if emails else None
+    if not candidate.email and emails:
+        candidate.email = emails[0]
     corpus = " ".join(texts).lower()
     bonus = 0
     signal_terms = {
@@ -415,9 +571,9 @@ def save_candidate(conn: sqlite3.Connection, c: Candidate) -> bool:
     try:
         conn.execute(
             """INSERT INTO leads
-            (fingerprint, company, website, email, signal_name, signal_score, score, evidence_url, evidence_text, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'discovered', ?, ?)""",
-            (fp, c.company, c.website, c.email, c.signal_name, c.signal_score, c.score, c.evidence_url, c.evidence_text, now_iso(), now_iso()),
+            (fingerprint, company, website, email, signal_name, signal_score, score, evidence_url, evidence_text, status, location, whatsapp_number, whatsapp_draft, ad_quality, ad_audit_notes, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'discovered', ?, ?, ?, ?, ?, ?, ?)""",
+            (fp, c.company, c.website, c.email, c.signal_name, c.signal_score, c.score, c.evidence_url, c.evidence_text, c.location, c.whatsapp_number, c.whatsapp_draft, c.ad_quality, c.ad_audit_notes, now_iso(), now_iso()),
         )
         conn.commit()
         return True
@@ -426,19 +582,24 @@ def save_candidate(conn: sqlite3.Connection, c: Candidate) -> bool:
 
 
 def deterministic_email(row: sqlite3.Row, config: dict) -> tuple[str, str]:
-    offer = config["offer"]
-    outreach = config["outreach"]
-    subject = outreach.get("subject_template", "Quick question about {company}").format(company=row["company"])
-    evidence = (row["evidence_text"] or "").strip()
+    offer = config.get("offer", {})
+    outreach = config.get("outreach", {})
+    company_name = row["company"] if "company" in row.keys() else "your business"
+    signal = row["signal_name"].replace("_", " ") if "signal_name" in row.keys() and row["signal_name"] else "growth"
+    subject = outreach.get("subject_template", "Quick question about {company}").format(company=company_name)
+    evidence = (row["evidence_text"] or "").strip() if "evidence_text" in row.keys() and row["evidence_text"] else ""
     if evidence:
-        opener = f"I came across {row['company']} while looking at businesses showing a possible {row['signal_name'].replace('_', ' ')} signal."
+        opener = f"I came across {company_name} while looking at businesses showing a possible {signal} signal."
     else:
-        opener = f"I came across {row['company']} and noticed a possible {row['signal_name'].replace('_', ' ')} signal."
+        opener = f"I came across {company_name} and noticed a possible {signal} signal."
+    offer_desc = offer.get("description", "delivering high-impact growth and AI solutions.")
+    cta = offer.get("cta", "Open to a quick chat?")
+    sender = offer.get("sender_name", "")
     body = (
         f"Hi,\n\n{opener}\n\n"
-        f"I help businesses with {offer['description']}\n\n"
-        f"{offer.get('cta', 'Open to a quick chat?')}\n\n"
-        f"Best,\n{offer.get('sender_name', '')}"
+        f"I help businesses with {offer_desc}\n\n"
+        f"{cta}\n\n"
+        f"Best,\n{sender}"
     )
     if outreach.get("include_opt_out", True):
         body += "\n\nP.S. If this isn't relevant, reply 'no' and I won't follow up."
@@ -465,7 +626,7 @@ def gmail_service(credentials_path: str | Path | None = None, token_path: str | 
         creds.refresh(Request())
     if not creds or not creds.valid:
         if not creds_file.exists():
-            raise SystemExit(f"Missing Gmail OAuth file: {creds_file}")
+            raise FileNotFoundError(f"Missing Gmail OAuth file: {creds_file}. Set up credentials.json to enable Gmail drafting/sending.")
         flow = InstalledAppFlow.from_client_secrets_file(creds_file, SCOPES)
         creds = flow.run_local_server(port=0)
         token_file.write_text(creds.to_json(), encoding="utf-8")

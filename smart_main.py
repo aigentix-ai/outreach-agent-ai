@@ -13,6 +13,7 @@ from ai_agent import available as ai_available
 from ai_agent import qualify_lead, write_email
 from contact_agent import find_best_contact
 from reporter import RunReport
+import meta_agent
 
 
 EXTRA_COLUMNS = {
@@ -28,6 +29,13 @@ EXTRA_COLUMNS = {
     "contact_confidence": "INTEGER DEFAULT 0",
     "contact_direct_match": "INTEGER DEFAULT 0",
     "email_mx_valid": "INTEGER DEFAULT 0",
+    "rating": "INTEGER DEFAULT 0",
+    "feedback_note": "TEXT",
+    "location": "TEXT",
+    "whatsapp_number": "TEXT",
+    "whatsapp_draft": "TEXT",
+    "ad_quality": "TEXT",
+    "ad_audit_notes": "TEXT",
 }
 
 
@@ -62,23 +70,48 @@ def smart_research(candidate: core.Candidate, config: dict) -> tuple[core.Candid
             if text:
                 texts.append(f"PAGE {url}\n{text[:10000]}")
 
-    candidate.email = emails[0] if emails else None
+    if not candidate.email and emails:
+        candidate.email = emails[0]
     research_text = "\n\n".join(texts)[:30000]
     corpus = research_text.lower()
     terms = [w.lower() for w in candidate.signal_name.replace("_", " ").split() if len(w) > 3]
-    terms.extend(["video", "commercial", "creator", "editor", "ads", "marketing", "launch"])
+    offer_words = [w.lower() for w in f"{config.get('offer', {}).get('name', '')} {config.get('offer', {}).get('description', '')}".split() if len(w) > 3]
+    terms.extend(offer_words)
+    terms.extend(["contact", "owner", "service", "pricing", "quote", "booking", "schedule", "reception"])
     bonus = sum(5 for term in set(terms) if term in corpus)
     candidate.score = min(100, candidate.signal_score + min(bonus, 30))
     return candidate, research_text
 
 
 def save_enrichment(conn: sqlite3.Connection, candidate: core.Candidate, research_text: str,
-                    ai_result=None, contact=None) -> None:
+                    ai_result=None, contact=None, config: dict | None = None) -> None:
     fp = core.fingerprint(candidate.company, candidate.website, candidate.email)
     fields = {
         "research_text": research_text,
         "updated_at": core.now_iso(),
     }
+    if candidate.location:
+        fields["location"] = candidate.location
+    if candidate.whatsapp_number:
+        fields["whatsapp_number"] = candidate.whatsapp_number
+    if candidate.ad_quality:
+        fields["ad_quality"] = candidate.ad_quality
+    if candidate.ad_audit_notes:
+        fields["ad_audit_notes"] = candidate.ad_audit_notes
+
+    # Generate WhatsApp message draft if whatsapp number exists
+    if candidate.whatsapp_number and config:
+        contact_name = contact.name if contact else ""
+        pain_summary = ai_result.pain_summary if ai_result else ""
+        ad_notes = candidate.ad_audit_notes or ""
+        fields["whatsapp_draft"] = meta_agent.generate_whatsapp_draft(
+            company=candidate.company,
+            contact_name=contact_name,
+            offer_cfg=config.get("offer", {}),
+            pain_summary=pain_summary,
+            ad_notes=ad_notes,
+        )
+
     if ai_result:
         fields.update({
             "pain_summary": ai_result.pain_summary,
@@ -138,12 +171,18 @@ def discover(conn: sqlite3.Connection, config: dict, report: RunReport | None = 
             report.log_blacklist(candidate.company, block_reason)
             continue
 
-        # Ensure candidate is an actual e-commerce / direct-to-consumer store with products
-        corpus = research_text.lower()
-        ecommerce_signals = ["add to cart", "cart", "checkout", "shipping", "shop now", "buy now", "product", "catalog", "order now"]
-        if not any(sig in corpus for sig in ecommerce_signals):
-            print(f"[ecommerce-reject] {candidate.company}: not an active e-commerce store with products")
-            continue
+        # Optional E-commerce / DTC Store Filter (only runs if configured or targeting retail/e-commerce)
+        require_ecommerce = config.get("filters", {}).get("require_ecommerce_store", False) or any(
+            ind.lower() in ["ecommerce", "e-commerce", "d2c", "dtc", "retail", "store"]
+            for ind in config.get("target", {}).get("industries", [])
+        )
+        if require_ecommerce:
+            corpus = research_text.lower()
+            ecommerce_signals = ["add to cart", "cart", "checkout", "shipping", "shop now", "buy now", "product", "catalog", "order now"]
+            if not any(sig in corpus for sig in ecommerce_signals):
+                print(f"[ecommerce-reject] {candidate.company}: not an active e-commerce store with products")
+                report.notes.append(f"[E-Commerce Filter] Rejected {candidate.company}: No e-commerce checkout/cart signals found.")
+                continue
 
         report.log_deep_research()
 
@@ -166,6 +205,20 @@ def discover(conn: sqlite3.Connection, config: dict, report: RunReport | None = 
             else:
                 who = "business inbox"
             print(f"[contact] {candidate.company}: {who} <{contact.email}> conf={contact.confidence} MX={contact.mx_valid}")
+        elif candidate.email:
+            # Fallback to public email discovered on website
+            from contact_agent import ContactCandidate, _mx_valid
+            mx_ok = _mx_valid(candidate.email)
+            contact = ContactCandidate(
+                email=candidate.email,
+                source_url=candidate.website,
+                source_text="Public email verified on company domain.",
+                confidence=50 if mx_ok else 45,
+                mx_valid=mx_ok,
+                direct_match=False,
+            )
+            report.log_contact()
+            print(f"[contact-fallback] {candidate.company}: business inbox <{candidate.email}> conf={contact.confidence} MX={mx_ok}")
         elif require_email:
             print(f"[contact-reject] {candidate.company}: no sufficiently supported public business email")
             continue
@@ -200,7 +253,7 @@ def discover(conn: sqlite3.Connection, config: dict, report: RunReport | None = 
 
         if core.save_candidate(conn, candidate):
             created += 1
-            save_enrichment(conn, candidate, research_text, ai_result=ai_result, contact=contact)
+            save_enrichment(conn, candidate, research_text, ai_result=ai_result, contact=contact, config=config)
             if ai_result:
                 print(
                     f"[{created}] {candidate.company} | {candidate.email or '-'} | "
@@ -274,7 +327,7 @@ def outreach(conn: sqlite3.Connection, config: dict, channel: str | None = None,
     delay = float(config.get("outreach", {}).get("delay_seconds", 1.0))
     mode = config.get("outreach", {}).get("send_mode", "draft").lower()
     if mode not in {"draft", "send"}:
-        raise SystemExit("outreach.send_mode must be 'draft' or 'send'.")
+        raise ValueError("outreach.send_mode must be 'draft' or 'send'.")
 
     should_finish = False
     if report is None:
@@ -303,7 +356,16 @@ def outreach(conn: sqlite3.Connection, config: dict, channel: str | None = None,
             report.print_summary()
         return report
 
-    service = core.gmail_service(credentials_path=creds_file, token_path=token_file)
+    try:
+        service = core.gmail_service(credentials_path=creds_file, token_path=token_file)
+    except Exception as exc:
+        print(f"[outreach-auth-error] Gmail service unavailable: {exc}")
+        report.notes.append(f"Gmail Error: {exc}")
+        report.status = "failed"
+        if should_finish:
+            report.finish()
+            report.print_summary()
+        return report
     count = 0
     for row in rows:
         if require_email and not row["email"]:

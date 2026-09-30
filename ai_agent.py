@@ -54,7 +54,7 @@ PROVIDERS = {
     "gemini": {
         "key_env": "GEMINI_API_KEY",
         "model_env": "GEMINI_MODEL",
-        "default_model": "gemini-3.8-flash",
+        "default_model": "gemini-2.5-flash",
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
     },
 }
@@ -179,11 +179,40 @@ def call_llm_json(*, prompt: str, config: dict, temperature: float,
     return None
 
 
+def get_feedback_context() -> str:
+    """Retrieve top approved and rejected leads to steer the AI based on founder ratings."""
+    try:
+        import sqlite3
+        conn = sqlite3.connect(ROOT / "leads.db", timeout=5.0)
+        conn.row_factory = sqlite3.Row
+        liked = conn.execute("SELECT company, signal_name, pain_summary, feedback_note FROM leads WHERE rating > 0 ORDER BY updated_at DESC LIMIT 3").fetchall()
+        disliked = conn.execute("SELECT company, signal_name, pain_summary, feedback_note FROM leads WHERE rating < 0 ORDER BY updated_at DESC LIMIT 3").fetchall()
+        conn.close()
+        
+        ctx_parts = []
+        if liked:
+            ctx_parts.append("PREVIOUS HIGH-RATED LEADS BY FOUNDER (MODEL PREFERENCE):")
+            for r in liked:
+                note = f" (Founder feedback: {r['feedback_note']})" if r['feedback_note'] else ""
+                ctx_parts.append(f"- {r['company']}: {r['pain_summary']}{note}")
+        if disliked:
+            ctx_parts.append("PREVIOUS REJECTED LEADS BY FOUNDER (AVOID SIMILAR):")
+            for r in disliked:
+                note = f" (Founder feedback: {r['feedback_note']})" if r['feedback_note'] else ""
+                ctx_parts.append(f"- {r['company']}: {r['pain_summary']}{note}")
+        return "\n".join(ctx_parts)
+    except Exception:
+        return ""
+
+
 def qualify_lead(*, company: str, website: str, signal_name: str, signal_score: int,
                  evidence_url: str, evidence_text: str, research_text: str,
                  config: dict) -> AgentResult | None:
     offer = config.get("offer", {})
     target = config.get("target", {})
+    feedback_section = get_feedback_context()
+    feedback_text = f"\nFOUNDER FEEDBACK & HISTORICAL PREFERENCES:\n{feedback_section}\n" if feedback_section else ""
+
     prompt = f"""
 You are a strict B2B prospect qualification analyst.
 
@@ -191,7 +220,7 @@ Goal: decide whether this business has OBSERVABLE evidence of a problem that the
 Do not infer a pain merely because the company belongs to a target industry.
 Do not invent facts, people, revenue, tools, call volume, or operational problems.
 If evidence is weak or ambiguous, set qualified=false.
-
+{feedback_text}
 OFFER
 Name: {offer.get('name', '')}
 Description: {offer.get('description', '')}
@@ -255,16 +284,20 @@ def write_email(*, company: str, signal_name: str, evidence_text: str,
     first_name = contact_name.split()[0].strip() if contact_name.strip() else ""
     greeting = f"Hi {first_name}," if first_name else "Hi,"
 
+    service_name = offer.get("name", "B2B Solutions").strip() or "B2B Solutions"
+    service_desc = offer.get("description", "").strip() or "helping businesses scale operations and revenue"
+    cta = offer.get("cta", "Would you be open to a quick 10-minute chat this week?").strip()
+
     prompt = f"""
-Write a short, highly personalized, casual cold outreach email for a freelance / contract AI video commercial project.
+Write a short, highly personalized, casual cold outreach email offering {service_name}.
 
 CRITICAL REQUIREMENTS:
 - ABSOLUTELY NO PLACEHOLDERS: NEVER use brackets like [Your Name], [Company], [Product], [Insert Link], or [Name]. The email must be 100% finished and ready to send immediately.
-- CONTRACT / FREELANCE ONLY: You are a specialist offering freelance / project-based commercial video production. Never ask for a job, full-time employment, benefits, or a salary.
+- CONTRACT / FREELANCE / B2B SERVICE ONLY: You are offering {service_name} ({service_desc}). Never ask for a job, full-time employment, benefits, or a salary.
 - LENGTH & STYLE: Extremely concise (3 to 5 sentences max, under {max_words} words). Very natural, direct, and conversational human tone. No corporate fluff, fake compliments, or robotic buzzwords.
-- SUBJECT LINE: Short, natural 2-5 words (e.g. "quick video idea for {company}" or "{company}'s video ads").
+- SUBJECT LINE: Short, natural 2-5 words (e.g. "quick question for {company}" or "{service_name} for {company}").
 - GREETING: Must start exactly with "{greeting}".
-- CALL TO ACTION: Use this exact CTA: "{offer.get('cta', 'Would you be open to seeing a free 10-second sample video commercial tailored for your brand?')}".
+- CALL TO ACTION: Use this exact CTA: "{cta}".
 - SIGN OFF: Sign off with "Best,\n{sender_name}".
 
 PROSPECT
@@ -276,8 +309,8 @@ Evidence: {evidence_text[:3000]}
 Context: {pain_summary}
 
 OFFER
-Service: {offer.get('name', 'AI Video Commercials')}
-Description: {offer.get('description', '')}
+Service: {service_name}
+Description: {service_desc}
 Sender: {sender_name}
 
 Return strictly this JSON:

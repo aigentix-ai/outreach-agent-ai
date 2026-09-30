@@ -16,7 +16,7 @@ from typing import Any
 import uvicorn
 import yaml
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
@@ -115,7 +115,7 @@ def run_pipeline_worker(action: str, channel: str | None = None) -> None:
             smart_main.discover(conn, config, report=report)
             smart_main.outreach(conn, config, channel=channel, report=report)
             append_log("Full pipeline completed successfully.")
-    except Exception as exc:
+    except BaseException as exc:
         report.notes.append(f"Execution Error: {str(exc)}")
         report.status = "failed"
         append_log(f"ERROR: {str(exc)}")
@@ -139,6 +139,7 @@ def run_pipeline_worker(action: str, channel: str | None = None) -> None:
 @app.get("/api/status")
 def get_status() -> dict[str, Any]:
     conn = core.init_db()
+    smart_main.ensure_extra_columns(conn)
     conn.row_factory = sqlite3.Row
     try:
         status_counts = {}
@@ -154,7 +155,10 @@ def get_status() -> dict[str, Any]:
     finally:
         conn.close()
 
-    config = core.load_config()
+    try:
+        config = core.load_config()
+    except Exception:
+        config = {}
     ai_ready = os.getenv("GEMINI_API_KEY") or os.getenv("OPENROUTER_API_KEY") or os.getenv("NVIDIA_API_KEY")
 
     with logs_lock:
@@ -163,6 +167,7 @@ def get_status() -> dict[str, Any]:
     return {
         "is_running": task_state["is_running"],
         "current_action": task_state["current_action"],
+        "started_at": task_state["started_at"],
         "ai_ready": bool(ai_ready),
         "total_leads": total_leads,
         "status_counts": status_counts,
@@ -179,6 +184,7 @@ def get_status() -> dict[str, Any]:
 @app.get("/api/leads")
 def get_leads(status: str | None = None, search: str | None = None, limit: int = 50, offset: int = 0) -> dict[str, Any]:
     conn = core.init_db()
+    smart_main.ensure_extra_columns(conn)
     conn.row_factory = sqlite3.Row
     try:
         query = "SELECT * FROM leads WHERE 1=1"
@@ -188,6 +194,7 @@ def get_leads(status: str | None = None, search: str | None = None, limit: int =
             query += " AND status = ?"
             params.append(status)
 
+        search = search.strip() if search else None
         if search:
             query += " AND (company LIKE ? OR email LIKE ? OR website LIKE ?)"
             s = f"%{search}%"
@@ -215,6 +222,107 @@ def get_leads(status: str | None = None, search: str | None = None, limit: int =
     return {"total": total, "leads": leads}
 
 
+@app.get("/api/leads/export")
+def export_leads(status: str | None = None) -> Response:
+    import csv
+    conn = core.init_db()
+    smart_main.ensure_extra_columns(conn)
+    conn.row_factory = sqlite3.Row
+    try:
+        query = "SELECT company, website, email, contact_name, contact_title, score, signal_name, status, subject, body, ai_reason FROM leads"
+        params = []
+        if status and status != "all":
+            query += " WHERE status = ?"
+            params.append(status)
+        query += " ORDER BY score DESC, created_at DESC"
+        rows = conn.execute(query, params).fetchall()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Company", "Website", "Email", "Contact Name", "Contact Title", "Score", "Signal", "Status", "Subject", "Email Body", "AI Reason"])
+        for r in rows:
+            writer.writerow([
+                r["company"],
+                r["website"],
+                r["email"] or "",
+                r["contact_name"] or "",
+                r["contact_title"] or "",
+                r["score"],
+                r["signal_name"],
+                r["status"],
+                r["subject"] or "",
+                r["body"] or "",
+                r["ai_reason"] or "",
+            ])
+
+        csv_data = output.getvalue()
+        filename = f"leads_export_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    finally:
+        conn.close()
+
+
+class LeadStatusUpdate(BaseModel):
+    status: str
+
+
+@app.patch("/api/leads/{lead_id}/status")
+def update_lead_status(lead_id: int, data: LeadStatusUpdate) -> dict[str, Any]:
+    valid_statuses = {"discovered", "drafted", "sent", "archived"}
+    if data.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    conn = core.init_db()
+    try:
+        conn.execute("UPDATE leads SET status = ?, updated_at = ? WHERE id = ?", (data.status, core.now_iso(), lead_id))
+        conn.commit()
+        return {"success": True, "lead_id": lead_id, "new_status": data.status}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/leads/{lead_id}")
+def delete_lead(lead_id: int) -> dict[str, Any]:
+    conn = core.init_db()
+    try:
+        conn.execute("DELETE FROM leads WHERE id = ?", (lead_id,))
+        conn.commit()
+        return {"success": True, "message": f"Lead {lead_id} removed"}
+    finally:
+        conn.close()
+
+
+@app.post("/api/logs/clear")
+def clear_logs() -> dict[str, Any]:
+    with logs_lock:
+        task_state["logs"] = []
+    return {"success": True, "message": "Logs cleared"}
+
+
+class RateLeadRequest(BaseModel):
+    rating: int  # 1 for thumbs up, -1 for thumbs down, or 1 to 5
+    feedback_note: str = ""
+
+
+@app.post("/api/leads/{lead_id}/rate")
+def rate_lead(lead_id: int, req: RateLeadRequest) -> dict[str, Any]:
+    conn = core.init_db()
+    smart_main.ensure_extra_columns(conn)
+    try:
+        conn.execute(
+            "UPDATE leads SET rating = ?, feedback_note = ?, updated_at = ? WHERE id = ?",
+            (req.rating, req.feedback_note, core.now_iso(), lead_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    append_log(f"Lead #{lead_id} rated: {req.rating} (feedback: '{req.feedback_note}')")
+    return {"status": "ok", "lead_id": lead_id, "rating": req.rating, "feedback_note": req.feedback_note}
+
+
 @app.get("/api/config")
 def get_config() -> dict[str, Any]:
     return core.load_config()
@@ -226,35 +334,95 @@ class ConfigUpdateRequest(BaseModel):
     sender_name: str
     cta: str
     target_countries: list[str]
+    target_cities: list[str] = []
     target_industries: list[str]
     daily_cap: int
     send_mode: str
     blacklist_keywords: list[str]
     emergency_stop: bool
+    discovery_ddg: bool = True
+    discovery_meta_ads: bool = True
+    discovery_csv_import: bool = False
+    discovery_social_radar: bool = False
+    discovery_csv_path: str = "leads_input.csv"
 
 
 @app.post("/api/config")
 def update_config(data: ConfigUpdateRequest) -> dict[str, Any]:
     config = core.load_config()
-    config["offer"]["name"] = data.offer_name
-    config["offer"]["description"] = data.offer_description
-    config["offer"]["sender_name"] = data.sender_name
-    config["offer"]["cta"] = data.cta
+    offer = config.setdefault("offer", {})
+    offer["name"] = data.offer_name
+    offer["description"] = data.offer_description
+    offer["sender_name"] = data.sender_name
+    offer["cta"] = data.cta
 
-    config["target"]["countries"] = data.target_countries
-    config["target"]["industries"] = data.target_industries
+    target = config.setdefault("target", {})
+    target["countries"] = data.target_countries
+    target["cities"] = data.target_cities
+    target["industries"] = data.target_industries
 
-    config["outreach"]["daily_cap"] = data.daily_cap
-    config["outreach"]["send_mode"] = data.send_mode
+    outreach = config.setdefault("outreach", {})
+    outreach["daily_cap"] = data.daily_cap
+    outreach["send_mode"] = data.send_mode
 
-    if "filters" not in config:
-        config["filters"] = {}
-    config["filters"]["blacklist_keywords"] = data.blacklist_keywords
-    config["filters"]["emergency_stop"] = data.emergency_stop
+    filters = config.setdefault("filters", {})
+    filters["blacklist_keywords"] = data.blacklist_keywords
+    filters["emergency_stop"] = data.emergency_stop
+
+    discovery = config.setdefault("discovery", {})
+    sources = discovery.setdefault("sources", {})
+    sources["duckduckgo"] = data.discovery_ddg
+    sources["meta_ads"] = data.discovery_meta_ads
+    sources["csv_import"] = data.discovery_csv_import
+    sources["social_radar"] = data.discovery_social_radar
+    discovery["csv_path"] = data.discovery_csv_path
 
     CONFIG_PATH.write_text(yaml.dump(config, sort_keys=False), encoding="utf-8")
+    try:
+        example_path = ROOT / "config.example.yaml"
+        if example_path.exists():
+            example_path.write_text(yaml.dump(config, sort_keys=False), encoding="utf-8")
+    except Exception:
+        pass
     append_log("Settings updated successfully via Dashboard.")
     return {"success": True, "message": "Settings saved"}
+
+
+class ThemeUpdateRequest(BaseModel):
+    theme: str
+
+
+@app.get("/api/theme")
+def get_theme(request: Request) -> dict[str, str]:
+    cookie_theme = request.cookies.get("theme")
+    if cookie_theme in {"light", "dark"}:
+        return {"theme": cookie_theme}
+    try:
+        config = core.load_config()
+        theme = config.get("theme", "dark")
+        return {"theme": theme}
+    except Exception:
+        return {"theme": "dark"}
+
+
+@app.post("/api/theme")
+def set_theme(data: ThemeUpdateRequest, response: Response) -> dict[str, Any]:
+    theme = "light" if data.theme == "light" else "dark"
+    try:
+        config = core.load_config()
+        config["theme"] = theme
+        CONFIG_PATH.write_text(yaml.dump(config, sort_keys=False), encoding="utf-8")
+    except Exception as e:
+        logging.warning(f"Could not persist theme to config: {e}")
+
+    response.set_cookie(
+        key="theme",
+        value=theme,
+        max_age=31536000,
+        httponly=False,
+        samesite="lax",
+    )
+    return {"success": True, "theme": theme}
 
 
 @app.post("/api/action/{action_name}")
@@ -292,14 +460,15 @@ def get_reports() -> list[dict[str, Any]]:
 
 @app.get("/api/reports/{report_id}")
 def get_report_detail(report_id: str) -> dict[str, Any]:
-    json_path = REPORTS_DIR / f"report_{report_id}.json"
+    clean_id = "".join(c for c in report_id if c.isalnum() or c in "_-")
+    json_path = REPORTS_DIR / f"report_{clean_id}.json"
     if not json_path.exists():
         raise HTTPException(status_code=404, detail="Report not found")
     data = json.loads(json_path.read_text(encoding="utf-8"))
-    md_path = REPORTS_DIR / f"report_{report_id}.md"
+    md_path = REPORTS_DIR / f"report_{clean_id}.md"
     markdown = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
     return {
-        "id": report_id,
+        "id": clean_id,
         "filename": json_path.name,
         "data": data,
         "markdown": markdown,
@@ -308,8 +477,9 @@ def get_report_detail(report_id: str) -> dict[str, Any]:
 
 @app.delete("/api/reports/{report_id}")
 def delete_report(report_id: str) -> dict[str, Any]:
-    json_path = REPORTS_DIR / f"report_{report_id}.json"
-    md_path = REPORTS_DIR / f"report_{report_id}.md"
+    clean_id = "".join(c for c in report_id if c.isalnum() or c in "_-")
+    json_path = REPORTS_DIR / f"report_{clean_id}.json"
+    md_path = REPORTS_DIR / f"report_{clean_id}.md"
     deleted = False
     if json_path.exists():
         json_path.unlink()
@@ -319,7 +489,7 @@ def delete_report(report_id: str) -> dict[str, Any]:
         deleted = True
     if not deleted:
         raise HTTPException(status_code=404, detail="Report not found")
-    return {"success": True, "message": f"Report {report_id} deleted"}
+    return {"success": True, "message": f"Report {clean_id} deleted"}
 
 
 @app.delete("/api/reports")
@@ -336,10 +506,23 @@ def clear_all_reports() -> dict[str, Any]:
 
 
 @app.get("/", response_class=HTMLResponse)
-def index() -> str:
+def index(request: Request) -> str:
     html_path = ROOT / "static" / "index.html"
     if html_path.exists():
-        return html_path.read_text(encoding="utf-8")
+        content = html_path.read_text(encoding="utf-8")
+        cookie_theme = request.cookies.get("theme")
+        if not cookie_theme:
+            try:
+                config = core.load_config()
+                cookie_theme = config.get("theme", "dark")
+            except Exception:
+                cookie_theme = "dark"
+        if cookie_theme == "light":
+            content = content.replace('<html lang="en" class="dark">', '<html lang="en">')
+        else:
+            if '<html lang="en" class="dark">' not in content:
+                content = content.replace('<html lang="en">', '<html lang="en" class="dark">')
+        return content
     return "<h1>Outreach Dashboard Initializing...</h1>"
 
 

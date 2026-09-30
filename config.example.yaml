@@ -1,66 +1,52 @@
-# ==============================================================================
-# 1. MODULAR OFFER & NICHE CONFIGURATION
-# Easily change the offer, service description, or ICP for any skill or niche.
-# ==============================================================================
 offer:
   name: AI Receptionist
-  description: AI receptionist that answers inbound calls, captures leads, handles FAQs and books appointments.
+  description: AI receptionist answering calls and booking appointments.
   sender_name: Ahmad
   cta: Open to a quick 10-minute chat this week?
-
 target:
-  countries: ["United States"]
-  industries: ["plumber", "HVAC", "dentist", "med spa", "roofing"]
+  countries:
+  - United States
+  industries:
+  - plumber
+  - HVAC
+  - dentist
   max_search_results_per_query: 20
-
-# Buying signals that trigger outreach
+  cities: []
+discovery:
+  sources:
+    duckduckgo: true
+    meta_ads: true
+    csv_import: false
+    social_radar: false
+  csv_path: leads_input.csv
+  meta:
+    access_token: ''
 signals:
-  - name: hiring_receptionist
-    query_patterns:
-      - '"hiring receptionist" {industry}'
-      - '"front desk" hiring {industry}'
-    score: 35
-  - name: unanswered_calls
-    query_patterns:
-      - '"no one answers" {industry}'
-      - '"never answers the phone" {industry}'
-    score: 45
-  - name: appointment_friction
-    query_patterns:
-      - '"call to schedule" {industry}'
-    score: 15
-
-# ==============================================================================
-# 2. DYNAMIC FILTERS & EMERGENCY CONTROLS
-# Restrict channels, block unwanted keywords/domains, or instantly halt outreach.
-# ==============================================================================
+- name: hiring_receptionist
+  query_patterns:
+  - '"hiring receptionist" {industry}'
+  - '"front desk" hiring {industry}'
+  score: 35
+- name: unanswered_calls
+  query_patterns:
+  - '"no one answers" {industry}'
+  - '"never answers the phone" {industry}'
+  score: 45
+- name: appointment_friction
+  query_patterns:
+  - '"call to schedule" {industry}'
+  score: 15
 filters:
-  # Instantly stop or avoid companies matching these keywords in name or text
   blacklist_keywords:
-    - "crypto"
-    - "forex"
-    - "casino"
-    - "gambling"
-    - "adult"
-    - "agency"
-    - "recruiter"
-    - "intern"
-    - "student"
-  # Domains to completely skip
+  - crypto
+  - casino
   blacklist_domains:
-    - "example.com"
-    - "competitor.com"
-  # Industries to exclude dynamically
+  - example.com
+  - competitor.com
   excluded_industries: []
-  # Emergency kill switch: set to true to instantly block all draft creation and sending
   emergency_stop: false
-
-# ==============================================================================
-# 3. CHANNELS & MULTI-ACCOUNT SETTINGS
-# Switch sending accounts or channels effortlessly.
-# ==============================================================================
 channels:
-  active_channel: default_gmail # choose active account from the list below
+  active_channel: default_gmail
   accounts:
     default_gmail:
       type: gmail
@@ -74,39 +60,30 @@ channels:
       token_file: token_secondary.json
       daily_cap: 50
       sender_name: Sales Team
-
-# ==============================================================================
-# 4. OUTREACH & VOLUME CONTROL
-# Scale volume up or down and adjust pacing.
-# ==============================================================================
 outreach:
-  send_mode: draft # 'draft' (recommended) or 'send'
-  daily_cap: 25    # Max emails to draft/send per run
-  delay_seconds: 1.0 # Pacing delay between emails to avoid rate limits
+  send_mode: draft
+  daily_cap: 25
+  delay_seconds: 1.0
   include_opt_out: true
-  subject_template: "Quick question about {company}"
-
-# ==============================================================================
-# 5. AI QUALIFICATION & BRAIN SETTINGS
-# ==============================================================================
+  subject_template: Quick question about {company}
 qualification:
   min_score: 50
   require_public_email: true
-
 contact_intelligence:
   enabled: true
   max_search_results: 6
   min_confidence: 45
-  # Only publicly observed emails are selected. No fabricated guesses.
-
 ai:
   enabled: true
-  provider_order: ["nvidia", "openrouter", "gemini"]
+  provider_order:
+  - nvidia
+  - openrouter
+  - gemini
   min_heuristic_score_before_ai: 15
   min_confidence: 55
   max_email_words: 90
-
 crawler:
   timeout_seconds: 12
   max_pages_per_domain: 7
-  user_agent: "Mozilla/5.0 (compatible; OutreachResearchBot/1.0)"
+  user_agent: Mozilla/5.0 (compatible; OutreachResearchBot/1.0)
+theme: dark

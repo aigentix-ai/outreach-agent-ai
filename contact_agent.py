@@ -128,23 +128,22 @@ def _search_public_evidence(company: str, website: str, max_results: int = 8) ->
     ]
     results: list[dict] = []
     seen: set[str] = set()
-    with DDGS() as ddgs:
-        for query in queries:
-            try:
-                rows = ddgs.text(query, max_results=max_results)
-            except Exception as exc:
-                print(f"[contact-search-error] {company}: {exc}")
+    for query in queries:
+        try:
+            rows = core.fetch_ddg_results(query, max_results=max_results)
+        except Exception as exc:
+            print(f"[contact-search-error] {company}: {exc}")
+            continue
+        for row in rows:
+            url = row.get("href") or row.get("url") or ""
+            if not url or url in seen:
                 continue
-            for row in rows:
-                url = row.get("href") or row.get("url") or ""
-                if not url or url in seen:
-                    continue
-                seen.add(url)
-                results.append({
-                    "url": url,
-                    "title": row.get("title") or "",
-                    "text": row.get("body") or row.get("snippet") or "",
-                })
+            seen.add(url)
+            results.append({
+                "url": url,
+                "title": row.get("title") or "",
+                "text": row.get("snippet") or row.get("body") or "",
+            })
     return results
 
 

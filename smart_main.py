@@ -38,6 +38,8 @@ EXTRA_COLUMNS = {
     "whatsapp_draft": "TEXT",
     "ad_quality": "TEXT",
     "ad_audit_notes": "TEXT",
+    "needs_clarification": "INTEGER DEFAULT 0",
+    "clarification_question": "TEXT",
 }
 
 
@@ -54,7 +56,7 @@ def smart_research(candidate: core.Candidate, config: dict) -> tuple[core.Candid
     timeout = int(crawler.get("timeout_seconds", 12))
     max_pages = int(crawler.get("max_pages_per_domain", 7))
     ua = crawler.get("user_agent", "Mozilla/5.0")
-    pages = ["/", "/contact", "/contact-us", "/about", "/team", "/leadership", "/careers", "/jobs"][:max_pages]
+    pages = ["/", "/shop", "/products", "/collections", "/about", "/contact", "/contact-us"][:max_pages]
     texts: list[str] = []
     emails: list[str] = []
 
@@ -123,6 +125,8 @@ def save_enrichment(conn: sqlite3.Connection, candidate: core.Candidate, researc
             "ai_confidence": ai_result.confidence,
             "ai_evidence_quote": ai_result.evidence_quote,
             "score": ai_result.score,
+            "needs_clarification": 1 if getattr(ai_result, "needs_clarification", False) else 0,
+            "clarification_question": getattr(ai_result, "clarification_question", "") or "",
         })
     if contact:
         fields.update({
@@ -188,6 +192,13 @@ def discover(conn: sqlite3.Connection, config: dict, report: RunReport | None = 
             print("\n[EMERGENCY STOP] Kill switch detected! Halting discovery loop immediately.")
             report.notes.append("Discovery halted early by User Kill Switch.")
             break
+
+        # Pre-research junk check
+        is_junk, junk_reason = core.is_irrelevant_junk(candidate.company, candidate.website, candidate.evidence_text)
+        if is_junk:
+            print(f"[junk-reject] {candidate.company}: {junk_reason}")
+            report.log_blacklist(candidate.company, junk_reason)
+            continue
 
         candidate, research_text = smart_research(candidate, config)
 
@@ -264,14 +275,22 @@ def discover(conn: sqlite3.Connection, config: dict, report: RunReport | None = 
             )
             if ai_result:
                 candidate.score = ai_result.score
-                if not ai_result.qualified or ai_result.confidence < min_confidence or ai_result.score < min_score:
+                if getattr(ai_result, "needs_clarification", False):
+                    # Flag for founder clarification in admin dashboard
+                    report.log_ai_result(qualified=True, reason=f"Needs Founder Input: {ai_result.clarification_question}")
+                    print(
+                        f"[needs-clarification] {candidate.company} score={ai_result.score}: "
+                        f"{ai_result.clarification_question}"
+                    )
+                elif not ai_result.qualified or ai_result.confidence < min_confidence or ai_result.score < min_score:
                     report.log_ai_result(qualified=False, reason=ai_result.reason)
                     print(
                         f"[reject] {candidate.company} score={ai_result.score} "
                         f"confidence={ai_result.confidence}: {ai_result.reason}"
                     )
                     continue
-                report.log_ai_result(qualified=True, reason=ai_result.reason)
+                else:
+                    report.log_ai_result(qualified=True, reason=ai_result.reason)
         elif candidate.score < min_score:
             report.log_ai_result(qualified=False, reason=f"Heuristic score {candidate.score} < {min_score}")
             continue

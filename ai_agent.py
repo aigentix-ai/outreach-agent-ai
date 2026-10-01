@@ -22,6 +22,8 @@ class QualificationResult(BaseModel):
     pain_summary: str
     reason: str
     evidence_quote: str
+    needs_clarification: bool = False
+    clarification_question: str = ""
 
 
 class EmailResult(BaseModel):
@@ -48,6 +50,8 @@ class AgentResult:
     pain_summary: str
     reason: str
     evidence_quote: str
+    needs_clarification: bool = False
+    clarification_question: str = ""
 
 
 PROVIDERS = {
@@ -354,6 +358,12 @@ Scoring rubric:
 70-84: strong recent need signal (active static ad spenders, new product launches)
 85-100: unusually explicit buying need signal for video creatives
 
+FOUNDER CLARIFICATION TRIGGER:
+If the prospect sells legitimate consumer products or services, but you are uncertain whether they run paid ads or whether their visual style fits AI video production, OR if your confidence is borderline (40 to 60), set:
+"needs_clarification": true,
+and formulate a concise, direct 1-sentence question in "clarification_question" for the founder (e.g. "Brand sells luxury organic tea with static packshots; do you want to pitch 3D video ads?").
+Otherwise set "needs_clarification": false and "clarification_question": "".
+
 Return exactly this JSON shape:
 {{
   "qualified": true,
@@ -361,7 +371,9 @@ Return exactly this JSON shape:
   "confidence": 0,
   "pain_summary": "one factual sentence focusing on ad creative or commercial video needs",
   "reason": "concise evidence-based explanation",
-  "evidence_quote": "shortest useful exact fragment or empty string"
+  "evidence_quote": "shortest useful exact fragment or empty string",
+  "needs_clarification": false,
+  "clarification_question": ""
 }}
 """
 
@@ -384,6 +396,8 @@ Return exactly this JSON shape:
         pain_summary=parsed.pain_summary.strip(),
         reason=parsed.reason.strip(),
         evidence_quote=parsed.evidence_quote.strip(),
+        needs_clarification=parsed.needs_clarification,
+        clarification_question=parsed.clarification_question.strip(),
     )
 
 

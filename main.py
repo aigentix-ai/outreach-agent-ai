@@ -51,12 +51,17 @@ SKIP_HOSTS = {
     "linkedin.com", "www.linkedin.com", "facebook.com", "www.facebook.com", "instagram.com", "www.instagram.com",
     "twitter.com", "www.twitter.com", "x.com", "www.x.com", "tiktok.com", "www.tiktok.com", "pinterest.com", "www.pinterest.com",
     "indeed.com", "www.indeed.com", "glassdoor.com", "www.glassdoor.com", "shine.com", "www.shine.com", "naukri.com", "www.naukri.com",
+    "ziprecruiter.com", "www.ziprecruiter.com", "builtin.com", "www.builtin.com", "monster.com", "www.monster.com",
+    "wellfound.com", "www.wellfound.com", "lever.co", "greenhouse.io", "workable.com", "dice.com", "careerbuilder.com",
     "yelp.com", "www.yelp.com", "yellowpages.com", "www.yellowpages.com", "mapquest.com", "www.mapquest.com", "reddit.com", "www.reddit.com",
     "quora.com", "www.quora.com", "wikipedia.org", "en.wikipedia.org", "youtube.com", "www.youtube.com", "vimeo.com", "www.vimeo.com",
     "amazon.com", "www.amazon.com", "walmart.com", "www.walmart.com", "target.com", "www.target.com", "ebay.com", "www.ebay.com",
+    "aliexpress.com", "www.aliexpress.com", "alibaba.com", "www.alibaba.com", "shein.com", "www.shein.com", "temu.com", "www.temu.com",
     "etsy.com", "www.etsy.com", "sephora.com", "www.sephora.com", "ulta.com", "www.ulta.com", "play.google.com", "apps.apple.com",
     "techcrunch.com", "www.techcrunch.com", "forbes.com", "www.forbes.com", "yourstory.com", "www.yourstory.com",
     "medium.com", "www.medium.com", "substack.com", "www.substack.com", "bloomberg.com", "businessinsider.com",
+    "prnewswire.com", "www.prnewswire.com", "businesswire.com", "www.businesswire.com", "reuters.com", "cnn.com", "nytimes.com",
+    "trustpilot.com", "sitejabber.com", "bbb.org", "scamadviser.com", "complaintsboard.com",
     "whatsapp.com", "api.whatsapp.com", "wa.me", "t.me", "ghost.org", "msn.com", "zone.msn.com", "support.google.com",
     "crazygames.com", "poki.com", "onlinegames.io",
 }
@@ -166,6 +171,8 @@ def init_db() -> sqlite3.Connection:
         "whatsapp_draft": "TEXT",
         "ad_quality": "TEXT",
         "ad_audit_notes": "TEXT",
+        "needs_clarification": "INTEGER DEFAULT 0",
+        "clarification_question": "TEXT",
     }
     for col_name, col_type in extra_cols.items():
         if col_name not in existing:
@@ -202,7 +209,65 @@ def fingerprint(company: str, website: str, email_addr: str | None) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+JUNK_DOMAINS = {
+    "indeed.com", "glassdoor.com", "ziprecruiter.com", "builtin.com", "monster.com",
+    "wellfound.com", "lever.co", "greenhouse.io", "workable.com", "jobserve.com",
+    "dice.com", "careerbuilder.com", "simplyhired.com", "theladders.com",
+    "prnewswire.com", "businesswire.com", "globenewswire.com", "reuters.com",
+    "bloomberg.com", "forbes.com", "techcrunch.com", "medium.com", "substack.com",
+    "cnn.com", "nytimes.com", "theguardian.com", "bbc.com", "theverge.com",
+    "trustpilot.com", "sitejabber.com", "bbb.org", "scamadviser.com", "complaintsboard.com",
+    "wikipedia.org", "wiktionary.org", "wikihow.com", "investopedia.com", "dictionary.com",
+    "amazon.com", "walmart.com", "target.com", "ebay.com", "aliexpress.com", "alibaba.com",
+    "shein.com", "temu.com", "dhgate.com",
+}
+
+JUNK_PATTERNS = [
+    r"\bapply (now )?for this (job|position|role)\b",
+    r"\bjob description\b",
+    r"\bsalary range\b",
+    r"\byears of experience required\b",
+    r"\bsubmit your resume\b",
+    r"\bopen positions\b",
+    r"\bhiring manager\b",
+    r"\brecruiter\b",
+    r"\bpress release\b",
+    r"\bbreaking news\b",
+    r"\bstaff writer\b",
+    r"\beditor-in-chief\b",
+    r"\ball rights reserved news\b",
+    r"\bscam alert\b",
+    r"\bcomplaints against\b",
+    r"\bripoff report\b",
+    r"\bfraud warning\b",
+]
+
+
+def is_irrelevant_junk(company: str, url: str, text: str) -> tuple[bool, str]:
+    domain = urlparse(normalize_url(url)).netloc.lower().removeprefix("www.")
+    for jd in JUNK_DOMAINS:
+        if jd in domain or domain.endswith("." + jd):
+            return True, f"irrelevant junk/portal domain: {jd}"
+
+    comp_lower = company.lower()
+    for jk in ["job", "jobs", "career", "careers", "hiring", "news", "times", "press", "journal", "magazine", "scam", "complaint", "review", "directory"]:
+        if re.search(r"\b" + re.escape(jk) + r"\b", comp_lower):
+            return True, f"company name indicator: '{jk}'"
+
+    text_lower = text.lower() if text else ""
+    for pat in JUNK_PATTERNS:
+        if re.search(pat, text_lower):
+            return True, f"detected junk content pattern"
+
+    return False, ""
+
+
 def check_blacklist(candidate_name: str, url: str, text: str, config: dict) -> tuple[bool, str]:
+    # 1. Pre-check against built-in junk/scam/news filters
+    is_junk, junk_reason = is_irrelevant_junk(candidate_name, url, text)
+    if is_junk:
+        return True, junk_reason
+
     filters = config.get("filters", {})
     keywords = [k.lower().strip() for k in filters.get("blacklist_keywords", []) if k.strip()]
     domains = [d.lower().strip() for d in filters.get("blacklist_domains", []) if d.strip()]
@@ -216,7 +281,8 @@ def check_blacklist(candidate_name: str, url: str, text: str, config: dict) -> t
 
     name_and_text = f"{candidate_name} {text}".lower()
     for kw in keywords:
-        if kw in name_and_text:
+        pattern = r"\b" + re.escape(kw) + r"\b"
+        if re.search(pattern, name_and_text):
             return True, f"blacklisted keyword: '{kw}'"
 
     return False, ""
@@ -481,65 +547,65 @@ def search_candidates(config: dict, reporter=None) -> list[Candidate]:
                                 company = company_from_result(r.get("title", ""), url)
                                 body_text = (r.get("snippet") or "")[:1000]
 
-                            # Check if this result is a listicle or directory article
-                            is_listicle = any(w in url.lower() for w in ["/blog/", "/article/", "/top-", "/best-", "brands-in"]) or \
-                                          any(w in r.get("title", "").lower() for w in ["top 10", "top 20", "top 50", "best d2c", "brands you"])
+                                # Check if this result is a listicle or directory article
+                                is_listicle = any(w in url.lower() for w in ["/blog/", "/article/", "/top-", "/best-", "brands-in"]) or \
+                                              any(w in r.get("title", "").lower() for w in ["top 10", "top 20", "top 50", "best d2c", "brands you"])
 
-                            if is_listicle:
-                                try:
-                                    with httpx.Client(timeout=4.0, headers={"User-Agent": "Mozilla/5.0"}) as client:
-                                        art_html = fetch_html(client, url)
-                                        if art_html:
-                                            brand_links = extract_brands_from_listicle(url, art_html, SKIP_HOSTS)
-                                            for b_name, b_url in brand_links:
-                                                b_root = root_url(b_url)
-                                                if b_root in seen_websites:
-                                                    continue
-                                                is_blocked, _ = check_blacklist(b_name, b_url, "", config)
-                                                if is_blocked:
-                                                    continue
-                                                seen_websites.add(b_root)
-                                                if reporter:
-                                                    reporter.log_scan(1)
-                                                clean_b_name = b_name.encode("ascii", "ignore").decode("ascii")
-                                                print(f"[brand-from-listicle] {clean_b_name}: {b_root}", flush=True)
-                                                found.append(Candidate(
-                                                    company=b_name,
-                                                    website=b_root,
-                                                    signal_name="curated_d2c_listicle",
-                                                    signal_score=50,
-                                                    evidence_url=url,
-                                                    evidence_text=f"Featured in curated list of top D2C brands: {r.get('title', '')}",
-                                                ))
-                                except Exception as exc:
-                                    print(f"[listicle-extract-error] {url}: {exc}", flush=True)
-                                continue
+                                if is_listicle:
+                                    try:
+                                        with httpx.Client(timeout=4.0, headers={"User-Agent": "Mozilla/5.0"}) as client:
+                                            art_html = fetch_html(client, url)
+                                            if art_html:
+                                                brand_links = extract_brands_from_listicle(url, art_html, SKIP_HOSTS)
+                                                for b_name, b_url in brand_links:
+                                                    b_root = root_url(b_url)
+                                                    if b_root in seen_websites:
+                                                        continue
+                                                    is_blocked, _ = check_blacklist(b_name, b_url, "", config)
+                                                    if is_blocked:
+                                                        continue
+                                                    seen_websites.add(b_root)
+                                                    if reporter:
+                                                        reporter.log_scan(1)
+                                                    clean_b_name = b_name.encode("ascii", "ignore").decode("ascii")
+                                                    print(f"[brand-from-listicle] {clean_b_name}: {b_root}", flush=True)
+                                                    found.append(Candidate(
+                                                        company=b_name,
+                                                        website=b_root,
+                                                        signal_name="curated_d2c_listicle",
+                                                        signal_score=50,
+                                                        evidence_url=url,
+                                                        evidence_text=f"Featured in curated list of top D2C brands: {r.get('title', '')}",
+                                                    ))
+                                    except Exception as exc:
+                                        print(f"[listicle-extract-error] {url}: {exc}", flush=True)
+                                    continue
 
-                            # Direct brand candidate
-                            site_root = root_url(url)
-                            if site_root in seen_websites:
-                                continue
+                                # Direct brand candidate
+                                site_root = root_url(url)
+                                if site_root in seen_websites:
+                                    continue
 
-                            is_blocked, reason = check_blacklist(company, url, body_text, config)
-                            if is_blocked:
+                                is_blocked, reason = check_blacklist(company, url, body_text, config)
+                                if is_blocked:
+                                    if reporter:
+                                        reporter.log_blacklist(company, reason)
+                                    continue
+
+                                seen_websites.add(site_root)
                                 if reporter:
-                                    reporter.log_blacklist(company, reason)
-                                continue
+                                    reporter.log_scan(1)
+                                clean_comp = company.encode("ascii", "ignore").decode("ascii")
+                                print(f"[direct-brand] {clean_comp}: {site_root}", flush=True)
 
-                            seen_websites.add(site_root)
-                            if reporter:
-                                reporter.log_scan(1)
-                            clean_comp = company.encode("ascii", "ignore").decode("ascii")
-                            print(f"[direct-brand] {clean_comp}: {site_root}", flush=True)
-
-                            found.append(Candidate(
-                                company=company,
-                                website=site_root,
-                                signal_name=signal["name"],
-                                signal_score=int(signal.get("score", 0)),
-                                evidence_url=url,
-                                evidence_text=body_text,
-                            ))
+                                found.append(Candidate(
+                                    company=company,
+                                    website=site_root,
+                                    signal_name=signal["name"],
+                                    signal_score=int(signal.get("score", 0)),
+                                    evidence_url=url,
+                                    evidence_text=body_text,
+                                ))
                         time.sleep(0.2)
     return found
 

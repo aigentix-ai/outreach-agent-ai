@@ -61,21 +61,71 @@ filters:
   - Walmart
   - Target
   - eBay
+  - Shein
+  - Temu
+  - Zara
+  - H&M
   - job
+  - jobs
   - intern
+  - internship
   - hiring
+  - recruiter
+  - recruitment
+  - resume
+  - salary
+  - career
+  - careers
+  - news
+  - press release
+  - magazine
+  - journal
+  - times
+  - gazette
+  - podcast
+  - blog
+  - complaint
+  - complaints
+  - scam
+  - ripoff
   - charity
   - free
   - non-profit
   - cheap
-  - recruitment
   blacklist_domains:
-  - example.com
+  - indeed.com
+  - glassdoor.com
+  - linkedin.com
+  - ziprecruiter.com
+  - builtin.com
+  - monster.com
+  - wellfound.com
+  - lever.co
+  - greenhouse.io
+  - workable.com
+  - prnewswire.com
+  - businesswire.com
+  - forbes.com
+  - bloomberg.com
+  - medium.com
+  - substack.com
+  - techcrunch.com
+  - reuters.com
+  - cnn.com
+  - nytimes.com
+  - bbc.com
+  - wikipedia.org
+  - trustpilot.com
+  - yelp.com
+  - bbb.org
+  - reddit.com
+  - quora.com
   - amazon.com
   - target.com
   - walmart.com
   - shein.com
   - temu.com
+  - aliexpress.com
   excluded_industries: []
   emergency_stop: false
 channels:
@@ -86,7 +136,7 @@ channels:
       credentials_file: credentials.json
       token_file: token.json
       daily_cap: 25
-      sender_name: Your Name
+      sender_name: Saad
 outreach:
   send_mode: draft
   daily_cap: 25
@@ -103,9 +153,9 @@ contact_intelligence:
 ai:
   enabled: true
   provider_order:
+  - gemini
   - nvidia
   - openrouter
-  - gemini
   min_heuristic_score_before_ai: 15
   min_confidence: 55
   max_email_words: 85

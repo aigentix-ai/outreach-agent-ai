@@ -168,6 +168,7 @@ def get_status() -> dict[str, Any]:
         named_count = conn.execute("SELECT COUNT(*) FROM leads WHERE contact_name IS NOT NULL AND contact_name != ''").fetchone()[0]
         direct_match = conn.execute("SELECT COUNT(*) FROM leads WHERE contact_direct_match=1").fetchone()[0]
         mx_valid = conn.execute("SELECT COUNT(*) FROM leads WHERE email_mx_valid=1").fetchone()[0]
+        needs_clarification_count = conn.execute("SELECT COUNT(*) FROM leads WHERE needs_clarification=1").fetchone()[0]
     finally:
         conn.close()
 
@@ -189,6 +190,7 @@ def get_status() -> dict[str, Any]:
         "gemini_ready": len(ai_agent.get_gemini_api_keys()) > 0,
         "total_leads": total_leads,
         "status_counts": status_counts,
+        "needs_clarification_count": needs_clarification_count,
         "ai_qualified_count": ai_count,
         "named_contacts_count": named_count,
         "direct_matches_count": direct_match,
@@ -208,7 +210,9 @@ def get_leads(status: str | None = None, search: str | None = None, limit: int =
         query = "SELECT * FROM leads WHERE 1=1"
         params = []
 
-        if status and status != "all":
+        if status == "needs_clarification":
+            query += " AND needs_clarification = 1"
+        elif status and status != "all":
             query += " AND status = ?"
             params.append(status)
 
@@ -226,7 +230,9 @@ def get_leads(status: str | None = None, search: str | None = None, limit: int =
 
         total_query = "SELECT COUNT(*) FROM leads WHERE 1=1"
         t_params = []
-        if status and status != "all":
+        if status == "needs_clarification":
+            total_query += " AND needs_clarification = 1"
+        elif status and status != "all":
             total_query += " AND status = ?"
             t_params.append(status)
         if search:
@@ -339,6 +345,36 @@ def rate_lead(lead_id: int, req: RateLeadRequest) -> dict[str, Any]:
         conn.close()
     append_log(f"Lead #{lead_id} rated: {req.rating} (feedback: '{req.feedback_note}')")
     return {"status": "ok", "lead_id": lead_id, "rating": req.rating, "feedback_note": req.feedback_note}
+
+
+class LeadDecisionRequest(BaseModel):
+    decision: str  # "approve" or "reject"
+    note: str = ""
+
+
+@app.post("/api/leads/{lead_id}/decide")
+def decide_lead(lead_id: int, req: LeadDecisionRequest) -> dict[str, Any]:
+    conn = core.init_db()
+    smart_main.ensure_extra_columns(conn)
+    try:
+        new_status = "discovered" if req.decision == "approve" else "archived"
+        rating = 1 if req.decision == "approve" else -1
+        feedback = f"Founder clarification decision: {req.decision.upper()}. {req.note}".strip()
+        conn.execute(
+            """UPDATE leads SET 
+                needs_clarification = 0, 
+                status = ?, 
+                rating = ?, 
+                feedback_note = ?, 
+                updated_at = ? 
+               WHERE id = ?""",
+            (new_status, rating, feedback, core.now_iso(), lead_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    append_log(f"Lead #{lead_id} founder clarification resolved: {req.decision.upper()}")
+    return {"status": "ok", "lead_id": lead_id, "decision": req.decision, "new_status": new_status}
 
 
 @app.get("/api/config")
